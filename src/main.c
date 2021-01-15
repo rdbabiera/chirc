@@ -121,6 +121,50 @@ int main(int argc, char *argv[])
     }
 
     /* Your code goes here */
+    int passive_socket, active_socket;
+
+    struct addrinfo hints, *res, *p;
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+
+    if (getaddrinfo(NULL, port, &hints, &res) != 0) {
+        perror("getaddrinfo() failed");
+        exit(-1);
+    }
+
+    for (p = res; p != NULL; p = p->ai_next) {
+        if ((passive_socket = socket(p->ai_family, p->ai_socktype, 
+                p->ai_protocol)) == -1) {
+            perror("Could not open socket");
+            continue;
+        }
+
+        if (bind(passive_socket, p->ai_addr, p->ai_addrlen) == -1) {
+            close(passive_socket);
+            perror("Could not bind");
+            continue;
+        }
+
+        break;
+    }
+
+    if (p == NULL) {
+        fprintf(stderr, "failed to bind socket\n");
+        exit(2);
+    }
+
+    free(res);
+
+    if (listen(passive_socket, 5) == -1){
+        perror("Socket listen() failed");
+        close(passive_socket);
+        exit(-1);
+    }
+
+    fprintf(stderr, "Waiting for a connection...\n");
 
     return 0;
 }
