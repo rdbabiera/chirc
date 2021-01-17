@@ -128,8 +128,9 @@ int main(int argc, char *argv[])
 
     /* Your code goes here */
     int passive_socket, active_socket;
-
     struct addrinfo hints, *res, *p;
+    struct sockaddr_in server_addr, client_addr;
+    int yes = 1;
 
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;
@@ -157,12 +158,12 @@ int main(int argc, char *argv[])
         break;
     }
 
+    free(res);
+
     if (p == NULL) {
         fprintf(stderr, "failed to bind socket\n");
         exit(2);
     }
-
-    free(res);
 
     if (listen(passive_socket, 5) == -1){
         perror("Socket listen() failed");
@@ -171,6 +172,58 @@ int main(int argc, char *argv[])
     }
 
     fprintf(stderr, "Waiting for a connection...\n");
+
+    socklen_t sin_size = sizeof(struct sockaddr_in);
+    active_socket = accept(passive_socket, (struct sockaddr *) &client_addr, 
+            &sin_size);
+
+    if (active_socket == -1) {
+        perror("Socket accept() failed");
+        close(passive_socket);
+        exit(-1);
+    }
+
+    char buff[512];
+    int recv_status;
+
+    /* There are probably better ways to do this part, but as of now what we
+     * should be doing is something along the lines of
+     *     1. processing a command as soon as one is registered
+     *     2. continuing to receive data if it's available.
+     *     3. for the case of sending RPL welcome, it could be possible that 
+     *        a user has specific flags that need to be fulfilled before 
+     *        sending back the welcome message - NICK and USER. for the sake
+     *        of this project, we only need to accept one so it's probably okay
+     *        to have a 'global' check for one user, but if we want something 
+     *        more modular we would have to think about how we would keep track
+     *        of users better.
+     */
+    while ((recv_status = recv(active_socket, buff, 512, 0)) > 0) {
+        if (recv_status == -1) {
+            perror("Socket recv() failed");
+            close(active_socket);
+            close(passive_socket);
+            exit(-1);
+        }
+        else {
+            // Parse message. This involves strtok and I think will
+            // fill into an extra buffer. It needs to keep track of
+            // where the main buffer is. There is also the possibility
+            // that a command ends, so we would have to run that command.
+        }
+    }
+
+    char* message = "temp\n";
+    if (send(active_socket, message, strlen(message), 0) == -1){
+        perror("Socket send() failed");
+        close(active_socket);
+        close(passive_socket);
+        exit(-1);
+    }
+
+    close(active_socket);
+
+    close(passive_socket);
 
     return 0;
 }
