@@ -51,7 +51,6 @@
 #include <arpa/inet.h>
 
 #include "log.h"
-#include "process.h"
 
 
 int main(int argc, char *argv[])
@@ -131,6 +130,7 @@ int main(int argc, char *argv[])
     int passive_socket, active_socket;
     struct addrinfo hints, *res, *p;
     struct sockaddr_in server_addr, client_addr;
+    char hostname[128];
     int yes = 1;
 
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -165,6 +165,8 @@ int main(int argc, char *argv[])
         fprintf(stderr, "failed to bind socket\n");
         exit(2);
     }
+
+    gethostname(hostname, sizeof hostname);
 
     if (listen(passive_socket, 5) == -1){
         perror("Socket listen() failed");
@@ -202,8 +204,11 @@ int main(int argc, char *argv[])
     int recv_status;
     char* carr_found;
     int token_count;
-    bool carr_found;
+    int msg_offset = 0;
 
+    char command_current[128];
+    int command_length = 0;
+    int remaining_length = 0;
 
     token_count = 1;
 
@@ -214,41 +219,31 @@ int main(int argc, char *argv[])
             close(passive_socket);
             exit(-1);
         }
-        
-        // Ri, please double check my thinking here. I wasn't sure if an \r could show up by itself, because then we could not just say that if \r is found that that is a new command. 
-        // I'm going to treat it as if they stick together
-        
-        carr_found = strstr(buff, carriage_return)
 
-        // Looping through tokens
-        if (carr_found != NULL) {
-            // Ri I need help with the details here like malloc and stuff=
-            char* token =  strtok_r(buff, "\r\n", &saveptr);
+        strncpy(msg + msg_offset, buff, recv_status);
+        msg_offset += recv_status;
 
-            //need strcpy and strcat to append things to message, need to figure out details of when to do what (MISSING)
-
-            while (token != NULL){
-                // add token to a list of tokens (MISSING)
-                token = strtok_r(NULL, "\r\n", &saveptr);
-                token_count += 1;
-            }
+        carr_found = strstr(msg, "\r\n");
+        while (carr_found != NULL){
+            command_length = carr_found - msg;
+            strncpy(command_current, msg, command_length);
+            remaining_length = msg_offset - command_length - 2;
+            memmove(msg, msg + command_length + 2, remaining_length);
+            memset(msg + remaining_length, 0, 513 - remaining_length);
 
 
-            if (token_count == 1) {
-                //append the buffer to the message
-            } else {
-                //apend first token to message
-                //add to queue
-                //clean out message
-                //add next token to message, either add to queue or wait until next iteration to add to msg
-            }
+            // Essentially what we have now is command_current holding a 
+            // ready to process command, and msg pointing to the current rest of the buffer.
 
-        } else {
-            //append the buffer to the message
+            // Here: Process Message. It gets cleared after processing.
+            // process_message() - does not exist. try to think of a message processing 
+            // algorithm and how you think we should implement it in terms of architecture
+            // as well.
+            memset(command_current, 0, 128);
+            // Here: rerun strstr to find next valid command.
+            carr_found = strstr(msg, "\r\n");
+            msg_offset = remaining_length;
         }
-
-        
-
 
     }
 
