@@ -51,6 +51,7 @@
 #include <arpa/inet.h>
 
 #include "log.h"
+#include "process.h"
 
 
 int main(int argc, char *argv[])
@@ -171,7 +172,7 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    fprintf(stderr, "Waiting for a connection...\n");
+    chilog(INFO, "Waiting for a connection...\n");
 
     socklen_t sin_size = sizeof(struct sockaddr_in);
     active_socket = accept(passive_socket, (struct sockaddr *) &client_addr, 
@@ -183,34 +184,41 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    char buff[512];
+    /* Lucy's Parsing Algorithm:
+     *    - Run a command check to see if there are any carriage returns in the buffer
+     *    - If there are, split up message through strtok_r, put resulting tokens into a list of strings named tokens
+     *    - If length of tokens is 1, then immediately add to message. We know this must be competeing a previous message.
+     *    - If a message is complete, add it to the queue to be processed. 
+     *    - Count how many complete messages are present in this iteration of the while loop.
+     *    - Run a for loop that is based of the size of the message list, and execute each command.
+     *    - Pop each command that is executed 
+     * 
+     */
+
+    char buff[513];
+    char msg[513]; // needs to be copied, from tokens.
+    char** tokens;
+    char *saveptr, *saveptr_2;
     int recv_status;
 
-    /* There are probably better ways to do this part, but as of now what we
-     * should be doing is something along the lines of
-     *     1. processing a command as soon as one is registered
-     *     2. continuing to receive data if it's available.
-     *     3. for the case of sending RPL welcome, it could be possible that 
-     *        a user has specific flags that need to be fulfilled before 
-     *        sending back the welcome message - NICK and USER. for the sake
-     *        of this project, we only need to accept one so it's probably okay
-     *        to have a 'global' check for one user, but if we want something 
-     *        more modular we would have to think about how we would keep track
-     *        of users better.
-     */
-    while ((recv_status = recv(active_socket, buff, 512, 0)) > 0) {
-        if (recv_status == -1) {
+    while(1){
+        if ((recv_status = recv(active_socket, buff, 512, 0)) == -1) {
             perror("Socket recv() failed");
             close(active_socket);
             close(passive_socket);
             exit(-1);
         }
-        else {
-            // Parse message. This involves strtok and I think will
-            // fill into an extra buffer. It needs to keep track of
-            // where the main buffer is. There is also the possibility
-            // that a command ends, so we would have to run that command.
+        
+        // "NICK" "Lucy\r\n USER"
+
+        char* token =  strtok_r(buff, "\r\n", &saveptr);
+        while (token != NULL){
+            // Something here to keep track of token from prev call to strtok
+            token = strtok_r(NULL, "\r\n", &saveptr);
         }
+        
+
+
     }
 
     char* message = "temp\n";
