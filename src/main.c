@@ -200,6 +200,12 @@ int main(int argc, char *argv[])
     char** tokens;
     char *saveptr, *saveptr_2;
     int recv_status;
+    char* carr_found;
+    int token_count;
+    bool carr_found;
+
+
+    token_count = 1;
 
     while(1){
         if ((recv_status = recv(active_socket, buff, 512, 0)) == -1) {
@@ -209,13 +215,38 @@ int main(int argc, char *argv[])
             exit(-1);
         }
         
-        // "NICK" "Lucy\r\n USER"
+        // Ri, please double check my thinking here. I wasn't sure if an \r could show up by itself, because then we could not just say that if \r is found that that is a new command. 
+        // I'm going to treat it as if they stick together
+        
+        carr_found = strstr(buff, carriage_return)
 
-        char* token =  strtok_r(buff, "\r\n", &saveptr);
-        while (token != NULL){
-            // Something here to keep track of token from prev call to strtok
-            token = strtok_r(NULL, "\r\n", &saveptr);
+        // Looping through tokens
+        if (carr_found != NULL) {
+            // Ri I need help with the details here like malloc and stuff=
+            char* token =  strtok_r(buff, "\r\n", &saveptr);
+
+            //need strcpy and strcat to append things to message, need to figure out details of when to do what (MISSING)
+
+            while (token != NULL){
+                // add token to a list of tokens (MISSING)
+                token = strtok_r(NULL, "\r\n", &saveptr);
+                token_count += 1;
+            }
+
+
+            if (token_count == 1) {
+                //append the buffer to the message
+            } else {
+                //apend first token to message
+                //add to queue
+                //clean out message
+                //add next token to message, either add to queue or wait until next iteration to add to msg
+            }
+
+        } else {
+            //append the buffer to the message
         }
+
         
 
 
