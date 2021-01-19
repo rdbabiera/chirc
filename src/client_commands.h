@@ -23,6 +23,7 @@
  * extra1 & extra2: extra input
  * 
  * Returns: Char*
+ * 
  */
 char* construct_message(char* command, user* user_src, user* user_dest,
                         char* extra1, char* extra2);

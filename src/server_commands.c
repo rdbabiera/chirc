@@ -23,7 +23,7 @@ user* user_init(int socket, struct sockaddr* sa, socklen_t salen)
     status = getnameinfo(sa, salen, new_user->client_host, 128, 
         new_user->client_service, 128, 0);
 
-    new_user -> rpl_welcome = 0;
+    new_user -> rpl_welcome = false;
     return new_user;
 }
 
@@ -46,10 +46,10 @@ void nick_fn(char* command_str, user* user)
     
 }
 
+
 // Attach user name to user struct
 void user_fn(char* command_str, user* user)
-{
-    
+{   
     char *command_line, *full_name, *command, *username, *ignore1, *ignore2, *token;
     char *saveptr1, *saveptr2;
 
@@ -72,13 +72,12 @@ void user_fn(char* command_str, user* user)
     user->user = strdup(username);
     user->full_name = strdup(full_name);
     free(temp_str);
-
 }
+
 
 // Match message to a viable command
 void match(char* command_str, user* user)
 {
-
     char* saveptr1;
     char* temp_str = strdup(command_str);
 
@@ -99,6 +98,4 @@ void match(char* command_str, user* user)
             command_arr[i].execute_cmd(command_str, user);
         }
     }
-
-
 }

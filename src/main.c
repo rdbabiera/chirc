@@ -49,6 +49,8 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <stdbool.h>
+
 
 #include "log.h"
 #include "reply.h"
@@ -155,7 +157,7 @@ int main(int argc, char *argv[])
     for (p = res; p != NULL; p = p->ai_next)
     {
         if ((passive_socket = socket(p->ai_family, p->ai_socktype, 
-                p->ai_protocol)) == -1)
+             p->ai_protocol)) == -1)
         {
             perror("Could not open socket");
             continue;
@@ -218,24 +220,22 @@ int main(int argc, char *argv[])
      * - Repeat
      */
 
-    char buff[513];
-    char msg[513]; // needs to be copied, from tokens.
-    char** tokens;
-    char *saveptr, *saveptr_2;
+    char buff[513]; // buffer for messages
+    char msg[513]; 
     int recv_status;
     char* carr_found;
-    int token_count;
     long msg_offset = 0;
 
     char command_current[128];
     long command_length = 0;
     long remaining_length = 0;
 
-    token_count = 1;
 
     // Continue receiving from client until loop is borken
     chilog(INFO, "Waiting to receive...\n");
-    while(1){
+
+    while(1)
+    {
         if ((recv_status = recv(active_socket, buff, 512, 0)) == -1)
         {
             perror("Socket recv() failed");
@@ -253,6 +253,11 @@ int main(int argc, char *argv[])
 
         while (carr_found != NULL)
         {
+            /* If a \r\n is found within the message, take that out for
+             * processing. After taking it out, shift the pointer for the 
+             * beginning of "msg" to be at the location right after the \r\n
+             * that was found 
+             */
             command_length = carr_found - msg;
             strncpy(command_current, msg, command_length);
             command_current[command_length] = 0;
@@ -266,20 +271,20 @@ int main(int argc, char *argv[])
             //Clean out message
             memset(command_current, 0, sizeof command_current);
 
-            // rerun strstr to find next valid command
+            // Run strstr again to find the next command, if there is one
             carr_found = strstr(msg, "\r\n");
             msg_offset = remaining_length;
         }
 
-        if (curr_user->rpl_welcome == 0)
+        // If the wecome message has not been sent, send it. 
+        if (curr_user->rpl_welcome == false)
         {
             if ((curr_user->user != NULL) && (curr_user->nick != NULL))
             {
-                curr_user->rpl_welcome = 1;
+                curr_user->rpl_welcome = true;
                 char* welcome = construct_message(RPL_WELCOME, NULL, curr_user, 
-                        hostname, NULL);
-                if (send(active_socket, welcome, strlen(welcome), 0) 
-                        == -1)
+                                hostname, NULL);
+                if (send(active_socket, welcome, strlen(welcome), 0) == -1)
                 {
                     perror("Socket send() failed");
                     close(active_socket);
@@ -291,10 +296,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    
-
+    // Closing sockets
     close(active_socket);
-
     close(passive_socket);
 
     return 0;

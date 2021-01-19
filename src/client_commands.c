@@ -8,8 +8,9 @@
 #include "client_commands.h"
 #include "server_commands.h"
 
+// Construct message to be sent back to client
 char* construct_message(char* command, user* user_src, user* user_dest, 
-        char* extra1, char* extra2)
+                        char* extra1, char* extra2)
 {
     char* res = (char*)malloc(sizeof(char)*256);
     int status;
