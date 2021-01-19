@@ -51,6 +51,7 @@
 #include <arpa/inet.h>
 
 #include "log.h"
+#include "commands.h"
 
 
 int main(int argc, char *argv[])
@@ -127,6 +128,7 @@ int main(int argc, char *argv[])
     }
 
     /* Your code goes here */
+    /**************** Functions for Handling Sockets ****************/
     int passive_socket, active_socket;
     struct addrinfo hints, *res, *p;
     struct sockaddr_in server_addr, client_addr;
@@ -186,15 +188,14 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    /* Lucy's Parsing Algorithm:
-     *    - Run a command check to see if there are any carriage returns in the buffer
-     *    - If there are, split up message through strtok_r, put resulting tokens into a list of strings named tokens
-     *    - If length of tokens is 1, then immediately add to message. We know this must be competeing a previous message.
-     *    - If a message is complete, add it to the queue to be processed. 
-     *    - Count how many complete messages are present in this iteration of the while loop.
-     *    - Run a for loop that is based of the size of the message list, and execute each command.
-     *    - Pop each command that is executed 
-     * 
+    /**************** Functions for Handling Commands ****************/
+
+    /* RD's Parsing Algorithm:
+     * - Add buffer to message array
+     * - Search through message array to see if there is "\r\n"
+     * - If "\r\n" is present, process message immediately
+     * - Continue to check if current message has any other completed commands
+     * - Repeat
      */
 
     char buff[513];
@@ -239,6 +240,11 @@ int main(int argc, char *argv[])
             // process_message() - does not exist. try to think of a message processing 
             // algorithm and how you think we should implement it in terms of architecture
             // as well.
+
+            //Process message
+            match(msg, curr_user)
+
+
             memset(command_current, 0, 128);
             // Here: rerun strstr to find next valid command.
             carr_found = strstr(msg, "\r\n");
