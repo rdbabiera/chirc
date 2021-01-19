@@ -47,11 +47,14 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
 
 #include "log.h"
-#include "commands.h"
+#include "reply.h"
+#include "client_commands.h"
+#include "server_commands.h"
+
 
 
 int main(int argc, char *argv[])
@@ -128,6 +131,7 @@ int main(int argc, char *argv[])
     }
 
     /* Your code goes here */
+
     /**************** Functions for Handling Sockets ****************/
     int passive_socket, active_socket;
     struct addrinfo hints, *res, *p;
@@ -135,24 +139,30 @@ int main(int argc, char *argv[])
     char hostname[128];
     int yes = 1;
 
-    memset(&hints, 0, sizeof(struct addrinfo));
+    memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
 
-    if (getaddrinfo(NULL, port, &hints, &res) != 0) {
+    // Getting address information
+    if (getaddrinfo(NULL, port, &hints, &res) != 0) 
+    {
         perror("getaddrinfo() failed");
         exit(-1);
     }
 
-    for (p = res; p != NULL; p = p->ai_next) {
+    // Iterates through sockets and binds to the first one available
+    for (p = res; p != NULL; p = p->ai_next)
+    {
         if ((passive_socket = socket(p->ai_family, p->ai_socktype, 
-                p->ai_protocol)) == -1) {
+                p->ai_protocol)) == -1)
+        {
             perror("Could not open socket");
             continue;
         }
 
-        if (bind(passive_socket, p->ai_addr, p->ai_addrlen) == -1) {
+        if (bind(passive_socket, p->ai_addr, p->ai_addrlen) == -1)
+        {
             close(passive_socket);
             perror("Could not bind");
             continue;
@@ -163,14 +173,18 @@ int main(int argc, char *argv[])
 
     free(res);
 
-    if (p == NULL) {
+    if (p == NULL)
+    {
         fprintf(stderr, "failed to bind socket\n");
         exit(2);
     }
 
+    // Get hostname for the server
     gethostname(hostname, sizeof hostname);
 
-    if (listen(passive_socket, 5) == -1){
+    // Listen to socket
+    if (listen(passive_socket, 5) == -1)
+    {
         perror("Socket listen() failed");
         close(passive_socket);
         exit(-1);
@@ -178,19 +192,25 @@ int main(int argc, char *argv[])
 
     chilog(INFO, "Waiting for a connection...\n");
 
+    // Create an active socket 
     socklen_t sin_size = sizeof(struct sockaddr_in);
     active_socket = accept(passive_socket, (struct sockaddr *) &client_addr, 
             &sin_size);
 
-    if (active_socket == -1) {
+    if (active_socket == -1)
+    {
         perror("Socket accept() failed");
         close(passive_socket);
         exit(-1);
     }
 
+    // Initialize user
+    user* curr_user = user_init(active_socket, (struct sockaddr*) &client_addr, sin_size);
+    
+
     /**************** Functions for Handling Commands ****************/
 
-    /* RD's Parsing Algorithm:
+    /* RD and Lucy's Parsing Algorithm:
      * - Add buffer to message array
      * - Search through message array to see if there is "\r\n"
      * - If "\r\n" is present, process message immediately
@@ -205,61 +225,73 @@ int main(int argc, char *argv[])
     int recv_status;
     char* carr_found;
     int token_count;
-    int msg_offset = 0;
+    long msg_offset = 0;
 
     char command_current[128];
-    int command_length = 0;
-    int remaining_length = 0;
+    long command_length = 0;
+    long remaining_length = 0;
 
     token_count = 1;
 
+    // Continue receiving from client until loop is borken
+    chilog(INFO, "Waiting to receive...\n");
     while(1){
-        if ((recv_status = recv(active_socket, buff, 512, 0)) == -1) {
+        if ((recv_status = recv(active_socket, buff, 512, 0)) == -1)
+        {
             perror("Socket recv() failed");
             close(active_socket);
             close(passive_socket);
             exit(-1);
         }
 
+        // Transfer buffer to message
         strncpy(msg + msg_offset, buff, recv_status);
-        msg_offset += recv_status;
+        msg_offset += ((long)recv_status);
 
+        // Check message for carriage return ("\r\n")
         carr_found = strstr(msg, "\r\n");
-        while (carr_found != NULL){
+
+        while (carr_found != NULL)
+        {
             command_length = carr_found - msg;
             strncpy(command_current, msg, command_length);
+            command_current[command_length] = 0;
             remaining_length = msg_offset - command_length - 2;
             memmove(msg, msg + command_length + 2, remaining_length);
             memset(msg + remaining_length, 0, 513 - remaining_length);
 
-
-            // Essentially what we have now is command_current holding a 
-            // ready to process command, and msg pointing to the current rest of the buffer.
-
-            // Here: Process Message. It gets cleared after processing.
-            // process_message() - does not exist. try to think of a message processing 
-            // algorithm and how you think we should implement it in terms of architecture
-            // as well.
-
             //Process message
-            match(msg, curr_user)
+            match(command_current, curr_user);
 
+            //Clean out message
+            memset(command_current, 0, sizeof command_current);
 
-            memset(command_current, 0, 128);
-            // Here: rerun strstr to find next valid command.
+            // rerun strstr to find next valid command
             carr_found = strstr(msg, "\r\n");
             msg_offset = remaining_length;
         }
 
+        if (curr_user->rpl_welcome == 0)
+        {
+            if ((curr_user->user != NULL) && (curr_user->nick != NULL))
+            {
+                curr_user->rpl_welcome = 1;
+                char* welcome = construct_message(RPL_WELCOME, NULL, curr_user, 
+                        hostname, NULL);
+                if (send(active_socket, welcome, strlen(welcome), 0) 
+                        == -1)
+                {
+                    perror("Socket send() failed");
+                    close(active_socket);
+                    close(passive_socket);
+                    exit(-1);
+                }
+                free(welcome);
+            }
+        }
     }
 
-    char* message = "temp\n";
-    if (send(active_socket, message, strlen(message), 0) == -1){
-        perror("Socket send() failed");
-        close(active_socket);
-        close(passive_socket);
-        exit(-1);
-    }
+    
 
     close(active_socket);
 
