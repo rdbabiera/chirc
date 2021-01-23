@@ -50,6 +50,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 
 #include "log.h"
@@ -57,6 +58,17 @@
 #include "client_commands.h"
 #include "server_commands.h"
 
+#include "uthash.h"
+#include "utlist.h"
+
+typedef struct server_ctx {
+
+} server_ctx;
+
+typedef struct worker_args {
+    user* curr_user;
+    server_ctx* server_ctx;
+} worker_args;
 
 
 int main(int argc, char *argv[])
@@ -136,15 +148,19 @@ int main(int argc, char *argv[])
 
     /**************** Functions for Handling Sockets ****************/
     int passive_socket, active_socket;
+    pthread_t worker_thread;
     struct addrinfo hints, *res, *p;
-    struct sockaddr_in server_addr, client_addr;
-    char hostname[128];
+    struct sockaddr_in *server_addr, *client_addr;
+    socklen_t sin_size = sizeof(struct sockaddr_in);
+    struct worker_args *wa;
     int yes = 1;
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
+
+    char hostname[128];
 
     // Getting address information
     if (getaddrinfo(NULL, port, &hints, &res) != 0) 
@@ -157,16 +173,31 @@ int main(int argc, char *argv[])
     for (p = res; p != NULL; p = p->ai_next)
     {
         if ((passive_socket = socket(p->ai_family, p->ai_socktype, 
-             p->ai_protocol)) == -1)
+            p->ai_protocol)) == -1)
         {
             perror("Could not open socket");
             continue;
+        }
+
+        if (setsockopt(passive_socket, SOL_SOCKET, SO_REUSEADDR, 
+            &yes, sizeof(int)) == -1)
+        {
+            perror("Socket setsockopt() failed");
+            close(passive_socket);
+            continue
         }
 
         if (bind(passive_socket, p->ai_addr, p->ai_addrlen) == -1)
         {
             close(passive_socket);
             perror("Could not bind");
+            continue;
+        }
+
+        if (listen(passive_socket, 5) == -1)
+        {
+            perror("Socket listen() failed");
+            close(passive_socket);
             continue;
         }
 
@@ -184,42 +215,60 @@ int main(int argc, char *argv[])
     // Get hostname for the server
     gethostname(hostname, sizeof hostname);
 
-    // Listen to socket
-    if (listen(passive_socket, 5) == -1)
-    {
-        perror("Socket listen() failed");
-        close(passive_socket);
-        exit(-1);
-    }
-
     chilog(INFO, "Waiting for a connection...\n");
 
-    // Create an active socket 
-    socklen_t sin_size = sizeof(struct sockaddr_in);
-    active_socket = accept(passive_socket, (struct sockaddr *) &client_addr, 
+    while (1)
+    {
+        // Create an active socket
+        client_addr = calloc(1, sin_size);
+        active_socket = accept(passive_socket, (struct sockaddr *) client_addr, 
             &sin_size);
 
-    if (active_socket == -1)
-    {
-        perror("Socket accept() failed");
-        close(passive_socket);
-        exit(-1);
+        if (active_socket == -1)
+        {
+            free(client_addr);
+            perror("Could not accept() connection");
+            continue;
+        }
+
+        // Initialize user
+        user* curr_user = user_init(active_socket, 
+            (struct sockaddr*) client_addr, sin_size);
+        // add user management to server here
+        
+        wa = calloc(1, sizeof(worker_args));
+        // add worker args here
+        wa->curr_user = curr_user;
+
+        if (pthread_create(&worker_thread, NULL, service_single_client, wa) != 0)
+        {
+            perror("Could not create a worker thread");
+            free(client_addr);
+            free(wa);
+            close(active_socket);
+            close(passive_socket);
+            return EXIT_FAILURE;
+        }
+
     }
 
-    // Initialize user
-    user* curr_user = user_init(active_socket, (struct sockaddr*) &client_addr, sin_size);
-    
+    return EXIT_SUCCESS;
+}
 
-    /**************** Functions for Handling Commands ****************/
+void *service_single_client(void *args)
+{
+    worker_args *wa;
+    user* curr_user;
 
-    /* RD and Lucy's Parsing Algorithm:
-     * - Add buffer to message array
-     * - Search through message array to see if there is "\r\n"
-     * - If "\r\n" is present, process message immediately
-     * - Continue to check if current message has any other completed commands
-     * - Repeat
-     */
+    // Unpack arguemnts
+    wa = (worker_args*) args;
+    curr_user = wa->curr_user;
 
+    // Detach Thread
+    pthread_detach(pthread_self());
+    chilog(INFO, "Socket connected\n");
+
+    // Parameters for Receiving Data
     char buff[513]; // buffer for messages
     char msg[513]; 
     int recv_status;
@@ -230,18 +279,14 @@ int main(int argc, char *argv[])
     long command_length = 0;
     long remaining_length = 0;
 
-
-    // Continue receiving from client until loop is borken
-    chilog(INFO, "Waiting to receive...\n");
-
     while(1)
     {
-        if ((recv_status = recv(active_socket, buff, 512, 0)) == -1)
+        if ((recv_status = recv(curr_user->client_socket, buff, 512, 0)) == -1)
         {
             perror("Socket recv() failed");
-            close(active_socket);
-            close(passive_socket);
-            exit(-1);
+            close(curr_user->client_socket);
+            free(wa);
+            pthread_exit(NULL);
         }
 
         // Transfer buffer to message
@@ -276,30 +321,9 @@ int main(int argc, char *argv[])
             msg_offset = remaining_length;
         }
 
-        // If the wecome message has not been sent, send it. 
-        if (curr_user->rpl_welcome == false)
-        {
-            if ((curr_user->user != NULL) && (curr_user->nick != NULL))
-            {
-                curr_user->rpl_welcome = true;
-                char* welcome = construct_message(RPL_WELCOME, NULL, curr_user, 
-                                hostname, NULL);
-                if (send(active_socket, welcome, strlen(welcome), 0) == -1)
-                {
-                    perror("Socket send() failed");
-                    close(active_socket);
-                    close(passive_socket);
-                    exit(-1);
-                }
-                free(welcome);
-            }
-        }
+        // Handle Stuff Here
+
     }
-
-    // Closing sockets
-    close(active_socket);
-    close(passive_socket);
-
-    return 0;
+    
+        pthread_exit(NULL);
 }
-
