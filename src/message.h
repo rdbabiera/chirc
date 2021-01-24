@@ -1,15 +1,15 @@
 /*
- * Client command functions
+ * Client message manager
  * 
- * This file will hold all functions and structs that relate to commands that
- * send information back to the client. 
+ * This file will hold all functions and structs that relate to constructing messages
+ * that send information back to the client or between clients.
  * 
  */
 
-#ifndef CHIRC_CLIENT_COMMANDs_H_
-#define CHIRC_CLIENT_COMMANDS_H_
+#ifndef CHIRC_MESSAGE_H_
+#define CHIRC_MESSAGE_H_
 
-#include "server_commands.h"
+#include "users.h"
 
 /*
  * construct_message - constructs messages to be sent back to clients
@@ -28,4 +28,4 @@
 char* construct_message(char* command, user* user_src, user* user_dest,
                         char* extra1, char* extra2);
 
-#endif //CHIRC_CLIENT_COMMANDS_H_
+#endif /* CHIRC_MESSAGE_H_ */

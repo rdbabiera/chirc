@@ -52,23 +52,15 @@
 #include <stdbool.h>
 #include <pthread.h>
 
-
-#include "log.h"
+#include "users.h"
+#include "server_info.h"
+#include "util.h"
+#include "message.h"
 #include "reply.h"
-#include "client_commands.h"
-#include "server_commands.h"
+#include "log.h"
 
 #include "uthash.h"
 #include "utlist.h"
-
-typedef struct server_ctx {
-
-} server_ctx;
-
-typedef struct worker_args {
-    user* curr_user;
-    server_ctx* server_ctx;
-} worker_args;
 
 
 int main(int argc, char *argv[])
@@ -145,6 +137,9 @@ int main(int argc, char *argv[])
     }
 
     /* Your code goes here */
+    /**************** Code to manage Server Context *****************/
+    server_ctx* server_ctx = malloc(sizeof(server_ctx));
+    user* users = NULL;
 
     /**************** Functions for Handling Sockets ****************/
     int passive_socket, active_socket;
@@ -184,7 +179,7 @@ int main(int argc, char *argv[])
         {
             perror("Socket setsockopt() failed");
             close(passive_socket);
-            continue
+            continue;
         }
 
         if (bind(passive_socket, p->ai_addr, p->ai_addrlen) == -1)
@@ -235,16 +230,20 @@ int main(int argc, char *argv[])
         user* curr_user = user_init(active_socket, 
             (struct sockaddr*) client_addr, sin_size);
         // add user management to server here
+        HASH_ADD_INT(users, client_socket, curr_user);
         
         wa = calloc(1, sizeof(worker_args));
         // add worker args here
         wa->curr_user = curr_user;
+        wa->server_ctx->users = users;
+        
 
         if (pthread_create(&worker_thread, NULL, service_single_client, wa) != 0)
         {
             perror("Could not create a worker thread");
             free(client_addr);
             free(wa);
+            HASH_DEL(users, curr_user);
             close(active_socket);
             close(passive_socket);
             return EXIT_FAILURE;
@@ -324,6 +323,6 @@ void *service_single_client(void *args)
         // Handle Stuff Here
 
     }
-    
+
         pthread_exit(NULL);
 }

@@ -9,8 +9,8 @@
  * commands with him. 
  */
 
-#ifndef CHIRC_SERVER_COMMANDS_H_
-#define CHIRC_SERVER_COMMANDS_H_
+#ifndef CHIRC_UTIL_H_
+#define CHIRC_UTIL_H_
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -19,37 +19,13 @@
 #include <netinet/in.h>
 #include <stdbool.h>
 
+#include "users.h"
+#include "message.h"
+
+#include "uthash.h"
+#include "utlist.h"
+
 /**************** Structs for Parsing Commands ****************/
-/* 
- * User Struct - Keeps track of user information
- *  
- * - nick: User's nickname
- * 
- * - user: User's username
- * 
- * - full_name: User's full name
- * 
- * - client_socket: Socket that the user is attached to
- * 
- * - client_host: Hostname of host that user is attached to
- * 
- * - client_service: Service provider of host that user is attached to
- * 
- * - rpl_welcome: Bool to see if the welcome message has been sent
- * 
- */
-typedef struct user {
-    char* nick;
-    char* user;
-    char* full_name;
-    int client_socket;
-    char client_host[128];
-    char client_service[128];
-
-    // Flags
-    bool rpl_welcome;
-} user;
-
 
 /*
  * Command struct - Attaches command function to command name
@@ -63,23 +39,6 @@ typedef struct command {
     char* cmd_name;
     void (*execute_cmd)(char*, user*);
 } cmd;
-
-
-/**************** Functions for User ****************/
-
-/*
- * user_init - Initialize a user
- * 
- * socket: the socket identifier for a client connected to the server
- * 
- * sa: the sockaddr info of the client
- * 
- * salen: the sockaddr len of the sa
- * 
- * Returns: (struct) User
- */
-user* user_init(int socket, struct sockaddr* sa, socklen_t salen);
-
 
 /**************** Functions for Parsing Commands ****************/
 
@@ -119,4 +78,4 @@ void user_fn(char* command_str, user* user);
 void match(char* command_str, user* user);
 
 
-#endif /* CHIRC_SERVER_COMMANDS_H_ */
+#endif /* CHIRC_UTIL_H_ */

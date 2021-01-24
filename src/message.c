@@ -3,10 +3,9 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "log.h"
+#include "message.h"
 #include "reply.h"
-#include "client_commands.h"
-#include "server_commands.h"
+#include "users.h"
 
 // Construct message to be sent back to client
 char* construct_message(char* command, user* user_src, user* user_dest, 
