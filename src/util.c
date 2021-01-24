@@ -8,59 +8,108 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include "reply.h"
+#include "users.h"
+#include "server_info.h"
 #include "log.h"
 #include "util.h"
-#include "users.h"
 
-// Attach nick name to user struct
-void nick_fn(char* command_str, user* user) 
+
+// Attach nick name to user struct, send RPL messages if registered
+void nick_fn(char* command_str, user* user, server_ctx* ctx) 
 {
-    char* command;
-    char* nickname;
-    char* saveptr;
+    char *nickname;
+    struct user* user_list;
+    user_list = ctx->user_list;
+    struct user* u;
+    char* error;
 
-    char* temp_str = strdup(command_str);
-    command = strtok_r(temp_str, " ", &saveptr);
-    nickname = strtok_r(NULL, " ", &saveptr);
-
-    chilog(INFO, "Nickname: %s registered", nickname);
-
-    user->nick = strdup(nickname);
-    free(temp_str);
+    // Order: command, nickname
+    char** res = tokenize_message(command_str, " ", 2);
+    nickname = res[1];
     
+    
+    // Here: If nickname is already in user list, send out error message
+    for (u = user_list; u != NULL; u=u->hh.next)
+    {
+        if (!strcmp(nickname, u->nick)){
+            error = construct_message(ERR_NICKNAMEINUSE, NULL, user, 
+                nickname, NULL);
+            send_message(error, user);
+            free_tokens(res, 2);
+            free(error);
+            return;
+        }
+    }
+
+    //Here: If nickname is null, send out error message
+    if (nickname == NULL)
+    {
+        error = construct_message(ERR_NONICKNAMEGIVEN, NULL, user, NULL, NULL);
+        send_message(error, user);
+        free_tokens(res, 2);
+        free(error);
+        return;
+    }
+
+    chilog(INFO, "Nickname: %s registered", res[1]);
+
+    user->nick = strdup(res[1]);
+    free_tokens(res, 2);
+
+    // Handle Registration
+    if (user->username != NULL)
+    {
+        char* welcome = construct_message(RPL_WELCOME, NULL, user, NULL, NULL);
+        char* your_host = construct_message(RPL_YOURHOST, NULL, user, NULL, NULL);
+        char* created = construct_message(RPL_CREATED, NULL, user, NULL, NULL);
+        char* my_info = construct_message(RPL_MYINFO, NULL, user, NULL, NULL);
+        send_message(welcome, user);
+        send_message(welcome, user);
+        send_message(welcome, user);
+        send_message(welcome, user);
+        
+    }
+
 }
 
 
-// Attach user name to user struct
-void user_fn(char* command_str, user* user)
+// Attach user name to user struct, send RPL messages if registered
+void user_fn(char* command_str, user* user, server_ctx* ctx)
 {   
-    char *command_line, *full_name, *command, *username, *ignore1, *ignore2, *token;
-    char *saveptr1, *saveptr2;
+    char *username, *full_name;
+    struct user* u;
 
-    char* temp_str = strdup(command_str);
+    if (user->username != NULL) //could also check registration flag?
+    {
+        //ERR_ALREADYREGISTRED
+    }
 
-    // Split the string by ":" to pull out command and the full name
-    command_line = strtok_r(temp_str, ":", &saveptr1);
-    full_name = strtok_r(NULL, ":", &saveptr1);
-    
+    if (validate_parameters(command, 4) == -1)
+    {
+        //ERR_NEEDMOREPARAMS
+    }
 
-    // Split the string by " " to get the username
-    command = strtok_r(command_line, " ", &saveptr2);
-    username = strtok_r(NULL, " ", &saveptr2);
-    ignore1 = strtok_r(NULL, " ", &saveptr2);
-    ignore2 = strtok_r(NULL, " ", &saveptr2);
+    // Order: command line, full name
+    char** res1 = tokenize_message(command_str, ":", 2);
+    // Order: command, username, ignore1, ignore2
+    char** res2 = tokenize_message(res1[0], " ", 4);
+
+    username = res2[1];
+    full_name = res1[1];
 
     chilog(INFO, "Username: %s registered.", username);
     chilog(INFO, "Full name: %s registered.", full_name);
 
-    user->user = strdup(username);
-    user->full_name = strdup(full_name);
-    free(temp_str);
+    user->username = strdup(res2[1]);
+    user->full_name = strdup(res1[1]);
+    free_tokens(res1, 2);
+    free_tokens(res2, 4);
 }
 
 
 // Match message to a viable command
-void match(char* command_str, user* user)
+void match(char* command_str, user* user, server_ctx* ctx)
 {
     char* saveptr1;
     char* temp_str = strdup(command_str);
@@ -79,7 +128,7 @@ void match(char* command_str, user* user)
         if (!strcmp(command_arr[i].cmd_name, command)) 
         {
             free(temp_str);
-            command_arr[i].execute_cmd(command_str, user);
+            command_arr[i].execute_cmd(command_str, user, ctx);
         }
     }
 }

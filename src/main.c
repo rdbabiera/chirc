@@ -63,6 +63,83 @@
 #include "utlist.h"
 
 
+// Function that runs in each thread to service a single client
+void *service_single_client(void *args)
+{
+    worker_args *wa;
+    user* curr_user;
+    server_ctx* ctx;
+
+    // Unpack arguemnts
+    wa = (worker_args*) args;
+    curr_user = wa->curr_user;
+    ctx = wa->server_ctx;
+
+    // Detach Thread
+    pthread_detach(pthread_self());
+    chilog(INFO, "Socket connected\n");
+
+    // Parameters for Receiving Data
+    char buff[513]; // buffer for messages
+    char msg[513]; 
+    int recv_status;
+    char* carr_found;
+    long msg_offset = 0;
+
+    char command_current[128];
+    long command_length = 0;
+    long remaining_length = 0;
+
+    while(1)
+    {
+        if ((recv_status = recv(curr_user->client_socket, buff, 512, 0)) == -1)
+        {
+            perror("Socket recv() failed");
+            close(curr_user->client_socket);
+            free(wa);
+            pthread_exit(NULL);
+        }
+
+        // Transfer buffer to message
+        strncpy(msg + msg_offset, buff, recv_status);
+        msg_offset += ((long)recv_status);
+
+        // Check message for carriage return ("\r\n")
+        carr_found = strstr(msg, "\r\n");
+
+        while (carr_found != NULL)
+        {
+            /* If a \r\n is found within the message, take that out for
+             * processing. After taking it out, shift the pointer for the 
+             * beginning of "msg" to be at the location right after the \r\n
+             * that was found 
+             */
+            command_length = carr_found - msg;
+            strncpy(command_current, msg, command_length);
+            command_current[command_length] = 0;
+            remaining_length = msg_offset - command_length - 2;
+            memmove(msg, msg + command_length + 2, remaining_length);
+            memset(msg + remaining_length, 0, 513 - remaining_length);
+
+            //Process message
+            match(command_current, curr_user, ctx);
+
+            //Clean out message
+            memset(command_current, 0, sizeof command_current);
+
+            // Run strstr again to find the next command, if there is one
+            carr_found = strstr(msg, "\r\n");
+            msg_offset = remaining_length;
+        }
+
+        // Handle Stuff Here
+        
+    }
+
+        pthread_exit(NULL);
+}
+
+
 int main(int argc, char *argv[])
 {
     int opt;
@@ -139,7 +216,7 @@ int main(int argc, char *argv[])
     /* Your code goes here */
     /**************** Code to manage Server Context *****************/
     server_ctx* server_ctx = malloc(sizeof(server_ctx));
-    user* users = NULL;
+    user* user_list = NULL;
 
     /**************** Functions for Handling Sockets ****************/
     int passive_socket, active_socket;
@@ -230,12 +307,12 @@ int main(int argc, char *argv[])
         user* curr_user = user_init(active_socket, 
             (struct sockaddr*) client_addr, sin_size);
         // add user management to server here
-        HASH_ADD_INT(users, client_socket, curr_user);
+        HASH_ADD_INT(user_list, client_socket, curr_user);
         
         wa = calloc(1, sizeof(worker_args));
         // add worker args here
         wa->curr_user = curr_user;
-        wa->server_ctx->users = users;
+        wa->server_ctx->user_list = user_list;
         
 
         if (pthread_create(&worker_thread, NULL, service_single_client, wa) != 0)
@@ -243,7 +320,7 @@ int main(int argc, char *argv[])
             perror("Could not create a worker thread");
             free(client_addr);
             free(wa);
-            HASH_DEL(users, curr_user);
+            HASH_DEL(user_list, curr_user);
             close(active_socket);
             close(passive_socket);
             return EXIT_FAILURE;
@@ -252,77 +329,4 @@ int main(int argc, char *argv[])
     }
 
     return EXIT_SUCCESS;
-}
-
-void *service_single_client(void *args)
-{
-    worker_args *wa;
-    user* curr_user;
-
-    // Unpack arguemnts
-    wa = (worker_args*) args;
-    curr_user = wa->curr_user;
-
-    // Detach Thread
-    pthread_detach(pthread_self());
-    chilog(INFO, "Socket connected\n");
-
-    // Parameters for Receiving Data
-    char buff[513]; // buffer for messages
-    char msg[513]; 
-    int recv_status;
-    char* carr_found;
-    long msg_offset = 0;
-
-    char command_current[128];
-    long command_length = 0;
-    long remaining_length = 0;
-
-    while(1)
-    {
-        if ((recv_status = recv(curr_user->client_socket, buff, 512, 0)) == -1)
-        {
-            perror("Socket recv() failed");
-            close(curr_user->client_socket);
-            free(wa);
-            pthread_exit(NULL);
-        }
-
-        // Transfer buffer to message
-        strncpy(msg + msg_offset, buff, recv_status);
-        msg_offset += ((long)recv_status);
-
-        // Check message for carriage return ("\r\n")
-        carr_found = strstr(msg, "\r\n");
-
-        while (carr_found != NULL)
-        {
-            /* If a \r\n is found within the message, take that out for
-             * processing. After taking it out, shift the pointer for the 
-             * beginning of "msg" to be at the location right after the \r\n
-             * that was found 
-             */
-            command_length = carr_found - msg;
-            strncpy(command_current, msg, command_length);
-            command_current[command_length] = 0;
-            remaining_length = msg_offset - command_length - 2;
-            memmove(msg, msg + command_length + 2, remaining_length);
-            memset(msg + remaining_length, 0, 513 - remaining_length);
-
-            //Process message
-            match(command_current, curr_user);
-
-            //Clean out message
-            memset(command_current, 0, sizeof command_current);
-
-            // Run strstr again to find the next command, if there is one
-            carr_found = strstr(msg, "\r\n");
-            msg_offset = remaining_length;
-        }
-
-        // Handle Stuff Here
-
-    }
-
-        pthread_exit(NULL);
 }

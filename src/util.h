@@ -20,6 +20,7 @@
 #include <stdbool.h>
 
 #include "users.h"
+#include "server_info.h"
 #include "message.h"
 
 #include "uthash.h"
@@ -37,7 +38,7 @@
  */
 typedef struct command {
     char* cmd_name;
-    void (*execute_cmd)(char*, user*);
+    void (*execute_cmd)(char*, user*, server_ctx*);
 } cmd;
 
 /**************** Functions for Parsing Commands ****************/
@@ -51,7 +52,7 @@ typedef struct command {
  * 
  * Returns: nothing (should only change user info)
  */
-void nick_fn(char* command_str, user* user);
+void nick_fn(char* command_str, user* user, server_ctx* ctx);
 
 
 /*
@@ -63,7 +64,7 @@ void nick_fn(char* command_str, user* user);
  * 
  * Returns: nothing (should only change user info)
  */
-void user_fn(char* command_str, user* user);
+void user_fn(char* command_str, user* user, server_ctx* ctx);
 
 
 /*
@@ -75,7 +76,7 @@ void user_fn(char* command_str, user* user);
  * 
  * Returns: nothing
  */
-void match(char* command_str, user* user);
+void match(char* command_str, user* user, server_ctx* ctx);
 
 
 #endif /* CHIRC_UTIL_H_ */

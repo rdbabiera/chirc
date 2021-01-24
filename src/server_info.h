@@ -9,10 +9,15 @@
 #ifndef CHIRC_SERVER_INFO_H_
 #define CHIRC_SERVER_INFO_H_
 
+#include "users.h"
+
+// Server context struct
 typedef struct server_ctx {
-    user* users;
+    user* user_list;
 } server_ctx;
 
+
+// Server context worker arguments struct
 typedef struct worker_args {
     user* curr_user;
     server_ctx* server_ctx;

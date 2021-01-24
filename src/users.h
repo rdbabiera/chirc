@@ -41,7 +41,7 @@
  */
 typedef struct user {
     char* nick;
-    char* user;
+    char* username;
     char* full_name;
     int client_socket;
     char client_host[128];

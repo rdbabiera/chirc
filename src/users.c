@@ -21,7 +21,7 @@ user* user_init(int socket, struct sockaddr* sa, socklen_t salen)
     int status;
     user* new_user = (user*)malloc(sizeof(user));
     new_user -> nick = NULL;
-    new_user -> user = NULL;
+    new_user -> username = NULL;
     new_user -> client_socket = socket;
     status = getnameinfo(sa, salen, new_user->client_host, 128, 
         new_user->client_service, 128, 0);
