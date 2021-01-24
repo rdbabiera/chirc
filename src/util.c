@@ -23,6 +23,14 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
     user_list = ctx->user_list;
     struct user* u;
     char* error;
+    bool previous;
+
+    // Boolean to check if nickname was already present
+    previous = false
+    if (user->registered == true)
+    {
+        previous = true
+    }
 
     // Order: command, nickname
     char** res = tokenize_message(command_str, " ", 2);
@@ -65,10 +73,14 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
         char* created = construct_message(RPL_CREATED, NULL, user, NULL, NULL);
         char* my_info = construct_message(RPL_MYINFO, NULL, user, NULL, NULL);
         send_message(welcome, user);
-        send_message(welcome, user);
-        send_message(welcome, user);
-        send_message(welcome, user);
-        
+        send_message(your_host, user);
+        send_message(created, user);
+        send_message(my_info, user);
+        return;
+    }
+    else
+    {
+        return;
     }
 
 }
