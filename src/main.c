@@ -54,7 +54,6 @@
 
 #include "users.h"
 #include "server_info.h"
-#include "util.h"
 #include "message.h"
 #include "reply.h"
 #include "log.h"

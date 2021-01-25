@@ -41,7 +41,7 @@ typedef struct command {
     void (*execute_cmd)(char*, user*, server_ctx*);
 } cmd;
 
-/**************** Functions for Parsing Commands ****************/
+/**************** Functions for Handling Commands ****************/
 
 /*
  * nick_fn - Attach NICK to user
@@ -61,6 +61,8 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx);
  * command_str: command string to be parsed
  * 
  * user: user who we are giving user name to
+ *
+ * ctx: server context
  * 
  * Returns: nothing (should only change user info)
  */
@@ -68,15 +70,41 @@ void user_fn(char* command_str, user* user, server_ctx* ctx);
 
 
 /*
- * match - Match current command with a possible command and execute
- * 
- * command_str: command string to be checked and matched
- * 
- * user: user who we are executing functions for
- * 
+ * quit_fn - Quit from the session
+ *
+ * command: command to be parsed
+ *
+ * user: user who wants to quit
+ *
+ * ctx: server context
+ *
  * Returns: nothing
  */
-void match(char* command_str, user* user, server_ctx* ctx);
+ void quit_fn(char* command, user* user, server_ctx* ctx)
+
+
+
+/**************** Functions for Constructing a Message ****************/
+
+/*
+ * construct_message - constructs messages to be sent back to clients based on
+ *                     command inputted 
+ * 
+ * command: the socket identifier for a client connected to the server
+ * 
+ * user_src: info for user sending messages
+ * 
+ * user_dest: info for user receiving messages
+ * 
+ * extra1 & extra2: extra input
+ * 
+ * Returns: Char*
+ * 
+ */
+char* construct_message(char* command, user* user_src, user* user_dest,
+                        char* extra1, char* extra2);
+
+
 
 
 #endif /* CHIRC_UTIL_H_ */

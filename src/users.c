@@ -15,6 +15,7 @@
 #include "message.h"
 
 
+
 // Initialize a user
 user* user_init(int socket, struct sockaddr* sa, socklen_t salen)
 {
