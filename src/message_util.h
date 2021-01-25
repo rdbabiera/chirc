@@ -80,9 +80,20 @@ void user_fn(char* command_str, user* user, server_ctx* ctx);
  *
  * Returns: nothing
  */
- void quit_fn(char* command, user* user, server_ctx* ctx)
+void quit_fn(char* command_str, user* user, server_ctx* ctx)
 
-
+/*
+ * privmsg_fn - Send a message to designated location
+ * 
+ * command: command line to be parsed
+ * 
+ * user: destination user/channel for message
+ * 
+ * ctx: server ocntext
+ * 
+ * Returns: nothing
+ */
+void privmsg_fn(char* command_str, user* user, server_ctx* ctx)
 
 /**************** Functions for Constructing a Message ****************/
 

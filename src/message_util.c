@@ -145,12 +145,11 @@ void user_fn(char* command_str, user* user, server_ctx* ctx)
 
 
 // Quit out of the session
-void quit_fn(char* command, user* user, server_ctx* ctx)
+void quit_fn(char* command_str, user* user, server_ctx* ctx)
 {
-    char* msg_param;
-    char* msg;
+    char* msg_param, msg;
 
-    // Quit, parameter
+    // Order: Quit, parameter
     char** res = tokenize_message(command_str, ":", 2)
 
     // Assign quit parameter if there is one
@@ -173,6 +172,30 @@ void quit_fn(char* command, user* user, server_ctx* ctx)
 }
 
 
+// Send a private message
+void privmsg_fn(char* command_str, user* user, server_ctx* ctx)
+{
+    char* dst_username;
+    user* dst_user;
+
+    char* msg;
+
+    // Order: command line, destination user
+    char** res1 = tokenize_message(command_str, ":", 2);
+    char** res2 = tokenize_message(res1[0], " ", 2);
+
+    dst_username = res2[1]
+    msg = res1[1]
+
+    // find desired user
+
+    send_message(msg, dst_username)
+    
+
+}
+
+
+/**************** Functions for Constructing a Message ****************/
 
 // Construct message to be sent back to client depending on command
 char* construct_message(char* command, user* user_src, user* user_dest, 
