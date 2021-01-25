@@ -9,9 +9,11 @@
 #include <netinet/in.h>
 #include <pthread.h>
 
+#include "reply.h"
 #include "users.h"
 #include "log.h"
 #include "parse_util.h"
+#include "message_util.h"
 
 
 
@@ -55,7 +57,7 @@ void free_tokens(char** tokens, int num_tokens)
 
 
 // Validate that the number of parameters is correct
-void validate_parameters(char* command, int target_params, user* user)
+int validate_parameters(char* command, int target_params, user* user)
 {
     int count = -1;
     char *saveptr, *token;
@@ -69,7 +71,7 @@ void validate_parameters(char* command, int target_params, user* user)
     }
     if (count < target_params)
     {
-        error = construct_message(ERR_NEEDMOREPARAMS, NULL, user, command, NULL);
+        char* error = construct_message(ERR_NEEDMOREPARAMS, NULL, user, command, NULL);
         send_message(error, user);
         return -1;
 

@@ -285,6 +285,7 @@ int main(int argc, char *argv[])
 
     // Get hostname for the server
     gethostname(hostname, sizeof hostname);
+    server_ctx->server_name = hostname;
 
     chilog(INFO, "Waiting for a connection...\n");
 

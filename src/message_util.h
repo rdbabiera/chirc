@@ -80,7 +80,7 @@ void user_fn(char* command_str, user* user, server_ctx* ctx);
  *
  * Returns: nothing
  */
-void quit_fn(char* command_str, user* user, server_ctx* ctx)
+void quit_fn(char* command_str, user* user, server_ctx* ctx);
 
 /*
  * privmsg_fn - Send a message to designated location
@@ -93,7 +93,55 @@ void quit_fn(char* command_str, user* user, server_ctx* ctx)
  * 
  * Returns: nothing
  */
-void privmsg_fn(char* command_str, user* user, server_ctx* ctx)
+void privmsg_fn(char* command_str, user* user, server_ctx* ctx);
+
+
+/*
+ * ping_fn - Processes ping and sends a pong back to the client
+ * 
+ * user: destination user/channel for message
+ * 
+ * ctx: server ocntext
+ * 
+ * Returns: nothing
+ */
+void ping_fn(char* command_str, user* user, server_ctx* ctx);
+
+
+/*
+ * pong_fn - Drops pong message from client
+ * 
+ * user: destination user/channel for message
+ * 
+ * ctx: server ocntext
+ * 
+ * Returns: nothing
+ */
+void pong_fn(char* command_str, user* user, server_ctx* ctx);
+
+
+/*
+ * lusers_fn - Drops pong message from client
+ * 
+ * user: destination user/channel for message
+ * 
+ * ctx: server ocntext
+ * 
+ * Returns: nothing
+ */
+void lusers_fn(char* command_str, user* user, server_ctx* ctx);
+
+
+/*
+ * whois_fn - Drops pong message from client
+ * 
+ * user: destination user/channel for message
+ * 
+ * ctx: server ocntext
+ * 
+ * Returns: nothing
+ */
+void whois_fn(char* command_str, user* user, server_ctx* ctx);
 
 /**************** Functions for Constructing a Message ****************/
 

@@ -10,6 +10,7 @@
 #define CHIRC_MESSAGE_H_
 
 #include "users.h"
+#include "server_info.h"
 
 
 /*

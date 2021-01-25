@@ -14,6 +14,7 @@
 #include "log.h"
 #include "message_util.h"
 #include "parse_util.h"
+#include "message.h"
 
 
 /**************** Functions for Handling Commands ****************/
@@ -29,10 +30,10 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
     bool previous;
 
     // Boolean to check if nickname was already present
-    previous = false
+    previous = false;
     if (user->registered == true)
     {
-        previous = true
+        previous = true;
     }
 
     // Order: command, nickname
@@ -79,7 +80,7 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
         send_message(your_host, user);
         send_message(created, user);
         send_message(my_info, user);
-        user->registered = true
+        user->registered = true;
         return;
     }
     else
@@ -95,14 +96,15 @@ void user_fn(char* command_str, user* user, server_ctx* ctx)
 {   
     char *username, *full_name;
     struct user* u;
+    char* error;
 
     if (user->username != NULL) 
     {
-        error = construct_message(ERR_ALREADYREGISTERED, NULL, user, NULL, NULL);
+        error = construct_message(ERR_ALREADYREGISTRED, NULL, user, NULL, NULL);
         send_message(error, user);
     }
 
-    if (validate_parameters(command, 4, user) == -1)
+    if (validate_parameters(command_str, 4, user) == -1)
     {
        return;
     }
@@ -124,7 +126,7 @@ void user_fn(char* command_str, user* user, server_ctx* ctx)
     free_tokens(res2, 4);
 
     // Handle registration
-    if (user->nick != NULL)
+    if ((user->nick != NULL) && (user->registered == false))
     {
         char* welcome = construct_message(RPL_WELCOME, NULL, user, NULL, NULL);
         char* your_host = construct_message(RPL_YOURHOST, NULL, user, NULL, NULL);
@@ -134,7 +136,11 @@ void user_fn(char* command_str, user* user, server_ctx* ctx)
         send_message(your_host, user);
         send_message(created, user);
         send_message(my_info, user);
-        user->registered = true
+        user->registered = true;
+        free(welcome);
+        free(your_host);
+        free(created);
+        free(my_info);
         return;
     }
     else
@@ -147,52 +153,99 @@ void user_fn(char* command_str, user* user, server_ctx* ctx)
 // Quit out of the session
 void quit_fn(char* command_str, user* user, server_ctx* ctx)
 {
-    char* msg_param, msg;
+    char *msg_param, *msg;
 
     // Order: Quit, parameter
-    char** res = tokenize_message(command_str, ":", 2)
+    char** res = tokenize_message(command_str, ":", 2);
 
     // Assign quit parameter if there is one
-    msg_param = res[1]
+    msg_param = res[1];
 
     if (msg_param != NULL)
     {
-        msg = msg_param
+        msg = msg_param;
     }
     else
     {
-        msg = "Client Quit"
+        msg = "Client Quit";
     }
 
     // Send message that user is quitting
-    char* new_msg = construct_message("QUIT", NULL, user, user->client_host, msg)
+    char* new_msg = construct_message("QUIT", NULL, user, user->client_host, msg);
     send_message(new_msg, user);
 
     // Ri, pls remove user from user_list and server_ctx
+    user_delete(ctx->user_list, user);
+    // it is done
 }
 
 
 // Send a private message
 void privmsg_fn(char* command_str, user* user, server_ctx* ctx)
 {
-    char* dst_username;
-    user* dst_user;
+    char* dst_nickname;
+    struct user* dst_user;
 
     char* msg;
 
     // Order: command line, destination user
     char** res1 = tokenize_message(command_str, ":", 2);
+    // Order: 
     char** res2 = tokenize_message(res1[0], " ", 2);
 
-    dst_username = res2[1]
-    msg = res1[1]
+    dst_nickname = res2[1];
+    msg = res1[1];
+    if (msg == NULL)
 
     // find desired user
-
-    send_message(msg, dst_username)
+    dst_user = user_lookup(ctx->user_list, 0, dst_nickname, 0);
+    if (dst_user == NULL)
+    {
+        //error handle ERR_NOSUCHNICK
+    }
+    send_message(msg, dst_user);
     
 
 }
+
+
+// ping
+void ping_fn(char* command_str, user* user, server_ctx* ctx)
+{
+    char* response = construct_message("PONG", NULL, NULL, ctx->server_name, NULL);
+    send_message(response, user);
+}
+
+
+// pong
+void pong_fn(char* command_str, user* user, server_ctx* ctx)
+{
+    /*
+    // Dont actually think we do anything but drop the message tbh
+    int param_check = validate_parameters(command_str, 2, user);
+    if (param_check != -1)
+    {
+        // Order: command, src, dest
+        char** res = tokenize_message(command_str, " ", 3);
+        char* src_nickname = res[1];
+        char* dst_nickname = res[2];
+        char* response = construct_message("PONG2", NULL, NULL, , NULL);
+        send_message(response, user);
+    }
+    */
+}
+
+
+void lusers_fn(char* command_str, user* user, server_ctx* ctx)
+{
+
+}
+
+void whois_fn(char* command_str, user* user, server_ctx* ctx)
+{
+
+}
+
 
 
 /**************** Functions for Constructing a Message ****************/
@@ -214,58 +267,84 @@ char* construct_message(char* command, user* user_src, user* user_dest,
     // RPL_YOURHOST
     else if (!strcmp(command, RPL_YOURHOST))
     {
-        status = sprintf(res, "Your host is %s, running version 420.69\n", 
-                        user_dest->client_host)) // Change ver later
+        status = sprintf(res, "Your host is %s, running version 420.69\r\n", 
+                        user_dest->client_host); // Change ver later
     }
     // RPL_CREATED
     else if (!strcmp(command, RPL_CREATED))
     {
         time_t t = time(NULL);
-        struct tm tm = *localtime(&t)
-        status = sprintf(res, "This server was created %d-%02d-%02d at %02d:%02d:%02d\n",
+        struct tm tm = *localtime(&t);
+        status = sprintf(res, "This server was created %d-%02d-%02d at %02d:%02d:%02d\r\n",
                         tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
                         tm.tm_min, tm.tm_sec);
     }
     // RPL_MYINFO
     else if (!strcmp(command, RPL_MYINFO))
     {
-        status = sprintf(res, "%s 420.60 ao mtov")
+        status = sprintf(res, "%s 420.60 ao mtov", extra1);
 
     }
     // ERR_NICKNAMEINUSE
     else if (!strcmp(command, ERR_NICKNAMEINUSE))
     {
         status = sprintf(res, "ERR_NICKNAMEINUSE: The nickname %s is already \
-                                in use\n", extra1);
+                                in use\r\n", extra1);
     }
     // ERR_NONICKNAMEGIVEN
     else if (!strcmp(command, ERR_NONICKNAMEGIVEN))
     {
-        status = sprintf(res, "ERR_NONICKNAMEGIVEN: No nickname given\n");
+        status = sprintf(res, "ERR_NONICKNAMEGIVEN: No nickname given\r\n");
     }
     // ERR_ALREADYREGISTERED
-    else if (!strcmp(command, ERR_ALREADYREGISTERED))
+    else if (!strcmp(command, ERR_ALREADYREGISTRED))
     {
         status = sprintf(res, "ERR_ALREADYREGISTERED: Unauthorized command \
-                                (already registered)\n")
+                                (already registered)\r\n");
     }
     // ERR_NEEDMOREPARAMS
     else if (!strcmp(command, ERR_NEEDMOREPARAMS))
     {
-        status = sprintf(res, "%s : Not enough parameters\n", extra1)
+        status = sprintf(res, "%s : Not enough parameters\r\n", extra1);
     }
     // Quit
     else if (!strcmp(command, "QUIT"))
     {
-        status = sprintf(res, "Closing Link: %s %s\n", extra1, extra2)
+        status = sprintf(res, "Closing Link: %s %s\r\n", extra1, extra2);
     }
     else if (!strcmp(command, ERR_NOTREGISTERED))
     {
-        status = sprintf(res, "ERR_NOTREGISTERED: You have not registered\n")
+        status = sprintf(res, "ERR_NOTREGISTERED: You have not registered\r\n");
     }
     else if (!strcmp(command, ERR_UNKNOWNCOMMAND))
     {
-        status = sprintf(res, "ERR_UNKNOWNCOMMAND: %s : Unknown command\n", extra1)
+        status = sprintf(res, "ERR_UNKNOWNCOMMAND: %s : Unknown command\r\n", extra1);
+    }
+    else if (!strcmp(command, "PONG"))
+    {
+        status = sprintf(res, "PONG :%s\r\n", extra1);
+    }
+    else if (!strcmp(command, RPL_LUSERCLIENT))
+    {
+        status = sprintf(res, ":There are %s users and %s services on 
+                        <integer> servers\r\n", extra1, extra2);
+    }
+    else if (!strcmp(command, RPL_LUSEROP))
+    {
+        status = sprintf(res, "%s :operator(s) online\r\n", extra1);
+    }
+    else if (!strcmp(command, RPL_LUSERUNKNOWN))
+    {
+        status = sprintf(res, "%s :unknown connection(s)\r\n", extra1);
+    }
+    else if (!strcmp(command, RPL_LUSERCHANNELS))
+    {
+        status = sprintf(res, "%s :channels formed\r\n", extra1);
+    }
+    else if (!strcmp(command, RPL_LUSERME))
+    {
+        status = sprintf(res, ":I have %s clients and %s servers\r\n", 
+                        extra1, extra2);
     }
     return res;
 }

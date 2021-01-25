@@ -19,22 +19,24 @@ void match(char* command_str, user* user, server_ctx* ctx)
     char* temp_str = strdup(command_str);
     bool matched;
 
-    matched == false
+    matched == false;
 
     // Filling out command array 
-    cmd command_arr[2] = {
+    cmd command_arr[5] = {
                 {"NICK", nick_fn}, 
-                {"USER", user_fn}
-                {"QUIT", quit_fn}
+                {"USER", user_fn},
+                {"QUIT", quit_fn},
+                {"PING", ping_fn},
+                {"PONG", pong_fn}
                 };
 
     // Getting command from command_str
     char* command = strtok_r(temp_str, " ", &saveptr1);
 
 
-    for(int i = 0; i < 3; i++)
+    for(int i = 0; i < 5; i++)
     {
-        if (user->registered == false) && (i > 1)) 
+        if ((user->registered == false) && (i > 1)) 
         {
             char* error = construct_message(ERR_NOTREGISTERED, NULL, user, NULL, NULL);
             send_message(error,user);

@@ -14,6 +14,7 @@
 // Server context struct
 typedef struct server_ctx {
     user* user_list;
+    char* server_name;
 } server_ctx;
 
 

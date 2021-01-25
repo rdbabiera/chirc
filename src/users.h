@@ -72,5 +72,18 @@ typedef struct user {
  */
 user* user_init(int socket, struct sockaddr* sa, socklen_t salen);
 
+/*
+ *
+ * 
+ */
+
+user* user_lookup(user* user_list, int type, char* parameter, int parameter2);
+
+/*
+ *
+ * 
+ */
+
+void user_delete(user* user_list, user* target);
 
 #endif /* CHIRC_USERS_H_ */
