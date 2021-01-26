@@ -1,12 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
+#include <unistd.h>
 #include <string.h>
+#include <getopt.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <stdbool.h>
+#include <pthread.h>
 
 #include "reply.h"
 #include "users.h"
@@ -23,11 +26,12 @@
 void nick_fn(char* command_str, user* user, server_ctx* ctx) 
 {
     char *nickname;
+    struct user* u;
     struct user* user_list;
     user_list = ctx->user_list;
-    struct user* u;
     char* error;
     bool previous;
+    int status;
 
     // Boolean to check if nickname was already present
     previous = false;
@@ -40,24 +44,30 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
     char** res = tokenize_message(command_str, " ", 2);
     nickname = res[1];
     
-    
+    chilog(INFO, "BREAKPOINT 1");
     // If nickname is already in user list, send out error message
     for (u = user_list; u != NULL; u=u->hh.next)
     {
         if (!strcmp(nickname, u->nick)){
-            error = construct_message(ERR_NICKNAMEINUSE, NULL, user, 
-                                        nickname, NULL);
+            error = (char*)malloc(sizeof(char)*512);
+            status = sprintf(error, 
+                    ":%s %s %s :The nickname %s is already in use.\r\n", 
+                    ctx->server_name, ERR_NICKNAMEINUSE, nickname, nickname);
             send_message(error, user);
             free_tokens(res, 2);
             free(error);
             return;
         }
     }
+    chilog(INFO, "BREAKPOINT 2");
 
     //If nickname is null, send out error message
     if (nickname == NULL)
     {
-        error = construct_message(ERR_NONICKNAMEGIVEN, NULL, user, NULL, NULL);
+        error = (char*)malloc(sizeof(char)*512);
+        status = sprintf(error, 
+                ":%s %s %s :No nickname given\r\n", 
+                ctx->server_name, ERR_NONICKNAMEGIVEN, nickname);
         send_message(error, user);
         free_tokens(res, 2);
         free(error);
@@ -72,14 +82,39 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
     // Handle Registration
     if ((user->username != NULL) && (previous == false))
     {
-        char* welcome = construct_message(RPL_WELCOME, NULL, user, NULL, NULL);
-        char* your_host = construct_message(RPL_YOURHOST, NULL, user, NULL, NULL);
-        char* created = construct_message(RPL_CREATED, NULL, user, NULL, NULL);
-        char* my_info = construct_message(RPL_MYINFO, NULL, user, NULL, NULL);
+        char* welcome = (char*)malloc(sizeof(char)*512);
+        status = sprintf(welcome, 
+                ":%s %s %s :Welcome to the Internet Relay Network %s!%s@%s\r\n", 
+                ctx->server_name, RPL_WELCOME, user->nick, user->nick, 
+                user->username, user->client_host);
+        
+        char* your_host = (char*)malloc(sizeof(char)*512);
+        status = sprintf(your_host, 
+                ":%s %s %s :Your host is %s, running version 420.69\r\n", 
+                ctx->server_name, RPL_YOURHOST, user->nick, ctx->server_name);
+
+        char* created = (char*)malloc(sizeof(char)*512);
+        time_t t = time(NULL);
+        struct tm tm = *localtime(&t);
+        status = sprintf(created, 
+                ":%s %s %s :This server was created %d-%02d-%02d at %02d:%02d:%02d\r\n",
+                ctx->server_name, RPL_CREATED, user->nick, tm.tm_year + 1900, 
+                tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+        
+        char* my_info = (char*)malloc(sizeof(char)*512);
+        status = sprintf(my_info, 
+                ":%s %s %s :%s 420.60 ao mtov\r\n", 
+                ctx->server_name, RPL_MYINFO, user->nick, ctx->server_name);
+
         send_message(welcome, user);
         send_message(your_host, user);
         send_message(created, user);
         send_message(my_info, user);
+
+        free(welcome);
+        free(your_host);
+        free(created);
+        free(my_info);
         user->registered = true;
         return;
     }
@@ -97,6 +132,7 @@ void user_fn(char* command_str, user* user, server_ctx* ctx)
     char *username, *full_name;
     struct user* u;
     char* error;
+    int status;
 
     if (user->username != NULL) 
     {
@@ -128,19 +164,40 @@ void user_fn(char* command_str, user* user, server_ctx* ctx)
     // Handle registration
     if ((user->nick != NULL) && (user->registered == false))
     {
-        char* welcome = construct_message(RPL_WELCOME, NULL, user, NULL, NULL);
-        char* your_host = construct_message(RPL_YOURHOST, NULL, user, NULL, NULL);
-        char* created = construct_message(RPL_CREATED, NULL, user, NULL, NULL);
-        char* my_info = construct_message(RPL_MYINFO, NULL, user, NULL, NULL);
+        char* welcome = (char*)malloc(sizeof(char)*512);
+        status = sprintf(welcome, 
+                ":%s %s %s :Welcome to the Internet Relay Network %s!%s@%s\r\n", 
+                ctx->server_name, RPL_WELCOME, user->nick, user->nick, 
+                user->username, user->client_host);
+        
+        char* your_host = (char*)malloc(sizeof(char)*512);
+        status = sprintf(your_host, 
+                ":%s %s %s :Your host is %s, running version 420.69\r\n", 
+                ctx->server_name, RPL_YOURHOST, user->nick, ctx->server_name);
+
+        char* created = (char*)malloc(sizeof(char)*512);
+        time_t t = time(NULL);
+        struct tm tm = *localtime(&t);
+        status = sprintf(created, 
+                ":%s %s %s :This server was created %d-%02d-%02d at %02d:%02d:%02d\r\n",
+                ctx->server_name, RPL_CREATED, user->nick, tm.tm_year + 1900, 
+                tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+        
+        char* my_info = (char*)malloc(sizeof(char)*512);
+        status = sprintf(my_info, 
+                ":%s %s %s :%s 420.60 ao mtov\r\n", 
+                ctx->server_name, RPL_MYINFO, user->nick, ctx->server_name);
+
         send_message(welcome, user);
         send_message(your_host, user);
         send_message(created, user);
         send_message(my_info, user);
-        user->registered = true;
+
         free(welcome);
         free(your_host);
         free(created);
         free(my_info);
+        user->registered = true;
         return;
     }
     else
@@ -153,6 +210,7 @@ void user_fn(char* command_str, user* user, server_ctx* ctx)
 // Quit out of the session
 void quit_fn(char* command_str, user* user, server_ctx* ctx)
 {
+    int status;
     char *msg_param, *msg;
 
     // Order: Quit, parameter
@@ -171,11 +229,19 @@ void quit_fn(char* command_str, user* user, server_ctx* ctx)
     }
 
     // Send message that user is quitting
-    char* new_msg = construct_message("QUIT", NULL, user, user->client_host, msg);
+    char* new_msg = (char*)malloc(sizeof(char)*512);
+    status = sprintf(new_msg, 
+            ":%s %s %s ERROR :Closing Link: %s %s\r\n", 
+            ctx->server_name, "QUIT", user->nick, 
+            user->client_host, msg);
+
     send_message(new_msg, user);
+    free(new_msg);
 
     // Ri, pls remove user from user_list and server_ctx
     user_delete(ctx->user_list, user);
+    chilog(INFO, "USER closed\n");
+    pthread_exit(NULL);
     // it is done
 }
 
@@ -256,48 +322,8 @@ char* construct_message(char* command, user* user_src, user* user_dest,
 {
     char* res = (char*)malloc(sizeof(char)*512);
     int status;
-    // RPL_WELCOME
-    if (!strcmp(command, RPL_WELCOME))
-    {
-        status = sprintf(res, 
-            ":%s 001 %s :Welcome to the Internet Relay Network %s!%s@%s\r\n", 
-            extra1, user_dest->nick, user_dest->nick, user_dest->username,
-            user_dest->client_host);
-    }
-    // RPL_YOURHOST
-    else if (!strcmp(command, RPL_YOURHOST))
-    {
-        status = sprintf(res, "Your host is %s, running version 420.69\r\n", 
-                        user_dest->client_host); // Change ver later
-    }
-    // RPL_CREATED
-    else if (!strcmp(command, RPL_CREATED))
-    {
-        time_t t = time(NULL);
-        struct tm tm = *localtime(&t);
-        status = sprintf(res, "This server was created %d-%02d-%02d at %02d:%02d:%02d\r\n",
-                        tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
-                        tm.tm_min, tm.tm_sec);
-    }
-    // RPL_MYINFO
-    else if (!strcmp(command, RPL_MYINFO))
-    {
-        status = sprintf(res, "%s 420.60 ao mtov", extra1);
-
-    }
-    // ERR_NICKNAMEINUSE
-    else if (!strcmp(command, ERR_NICKNAMEINUSE))
-    {
-        status = sprintf(res, "ERR_NICKNAMEINUSE: The nickname %s is already \
-                                in use\r\n", extra1);
-    }
-    // ERR_NONICKNAMEGIVEN
-    else if (!strcmp(command, ERR_NONICKNAMEGIVEN))
-    {
-        status = sprintf(res, "ERR_NONICKNAMEGIVEN: No nickname given\r\n");
-    }
     // ERR_ALREADYREGISTERED
-    else if (!strcmp(command, ERR_ALREADYREGISTRED))
+    if (!strcmp(command, ERR_ALREADYREGISTRED))
     {
         status = sprintf(res, "ERR_ALREADYREGISTERED: Unauthorized command \
                                 (already registered)\r\n");
@@ -326,8 +352,9 @@ char* construct_message(char* command, user* user_src, user* user_dest,
     }
     else if (!strcmp(command, RPL_LUSERCLIENT))
     {
-        status = sprintf(res, ":There are %s users and %s services on 
-                        <integer> servers\r\n", extra1, extra2);
+        status = sprintf(res, 
+            ":There are %s users and %s services on integer servers\r\n", 
+            extra1, extra2);
     }
     else if (!strcmp(command, RPL_LUSEROP))
     {

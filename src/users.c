@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -76,13 +77,18 @@ user* user_lookup(user* user_list, int type, char* parameter, int parameter2)
 // Delete a user from a userlist
 void user_delete(user* user_list, user* target)
 {
+    user* temp;
     if (user_list == target)
     {
         user_list = user_list->hh.next;
-    } else 
+    } 
+    else 
     {
+        chilog(INFO, "Blink once\n");
         HASH_DEL(user_list, target);
     }
+    close(target->client_socket);
+    pthread_mutex_destroy(&target->socket_mutex);
     free(target->nick);
     free(target->username);
     free(target->full_name);

@@ -91,6 +91,7 @@ void *service_single_client(void *args)
 
     while(1)
     {
+        chilog(INFO, "Waiting for a message...\n");
         if ((recv_status = recv(curr_user->client_socket, buff, 512, 0)) == -1)
         {
             perror("Socket recv() failed");
@@ -216,6 +217,7 @@ int main(int argc, char *argv[])
     /**************** Code to manage Server Context *****************/
     server_ctx* server_ctx = malloc(sizeof(server_ctx));
     user* user_list = NULL;
+    server_ctx->user_list = user_list;
 
     /**************** Functions for Handling Sockets ****************/
     int passive_socket, active_socket;
@@ -312,15 +314,14 @@ int main(int argc, char *argv[])
         wa = calloc(1, sizeof(worker_args));
         // add worker args here
         wa->curr_user = curr_user;
-        wa->server_ctx->user_list = user_list;
-        
+        wa->server_ctx = server_ctx;
 
         if (pthread_create(&worker_thread, NULL, service_single_client, wa) != 0)
         {
             perror("Could not create a worker thread");
             free(client_addr);
             free(wa);
-            HASH_DEL(user_list, curr_user);
+            HASH_DEL(server_ctx->user_list, curr_user);
             close(active_socket);
             close(passive_socket);
             return EXIT_FAILURE;

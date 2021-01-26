@@ -47,6 +47,7 @@ void match(char* command_str, user* user, server_ctx* ctx)
             free(temp_str);
             command_arr[i].execute_cmd(command_str, user, ctx);
             matched == true;
+            return;
         }
     }
 
@@ -69,5 +70,5 @@ void send_message(char* message, user* user_dest)
         pthread_mutex_unlock(&(user_dest->socket_mutex));
         return;
     }
-    pthread_mutex_lock(&(user_dest->socket_mutex));
+    pthread_mutex_unlock(&(user_dest->socket_mutex));
 }
