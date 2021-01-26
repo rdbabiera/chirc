@@ -149,35 +149,26 @@ void whois_fn(char* command_str, user* user, server_ctx* ctx);
  * construct_message - constructs messages to be sent back to clients based on
  *                     command inputted 
  * 
- * command: error to be evaluated
- * 
- * user_src: info for user sending messages
- * 
- * user_dest: info for user receiving messages
- * 
- * extra1 & extra2: extra input
- * 
- * Returns: Char*
- * 
- */
-char* construct_message(char* command, user* user_src, user* user_dest,
-                        char* extra1, char* extra2);
-
-
-
-/*
- * construct_error - constructs error to be sent back to clients based on
- *                     command inputted 
- * 
  * error: error to be evaluated
  * 
- * user: user who will be sent the error message
+ * user: info of user that the message is for
  * 
  * ctx: server context
  * 
- * Returns: Char*
- */ 
-char* construct_error(char* error, char* command, user* user_src, server_ctx* ctx);
+ * params: list of extra parameters as needed for the error
+ * 
+ * RPL: A boolean that tells whether the message is an RPL message or an error
+ * 
+ * Returns: char*
+ * 
+ * Credit: After speaking with multiple people within Networks about how they were
+ * handling errors, we decided it would be best to change our previous 2 extra
+ * parameters, to a string array for extra parameters to make things cleaner. 
+ * 
+ */
+char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
+                        bool RPL);
+
 
 
 #endif /* CHIRC_UTIL_H_ */
