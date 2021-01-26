@@ -93,7 +93,7 @@ void quit_fn(char* command_str, user* user, server_ctx* ctx);
  * 
  * Returns: nothing
  */
-void privmsg_fn(char* command_str, user* user, server_ctx* ctx);
+void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx);
 
 
 /*
@@ -137,7 +137,7 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx);
  * 
  * user: destination user/channel for message
  * 
- * ctx: server ocntext
+ * ctx: server context
  * 
  * Returns: nothing
  */
@@ -149,7 +149,7 @@ void whois_fn(char* command_str, user* user, server_ctx* ctx);
  * construct_message - constructs messages to be sent back to clients based on
  *                     command inputted 
  * 
- * command: the socket identifier for a client connected to the server
+ * command: error to be evaluated
  * 
  * user_src: info for user sending messages
  * 
@@ -164,6 +164,20 @@ char* construct_message(char* command, user* user_src, user* user_dest,
                         char* extra1, char* extra2);
 
 
+
+/*
+ * construct_error - constructs error to be sent back to clients based on
+ *                     command inputted 
+ * 
+ * error: error to be evaluated
+ * 
+ * user: user who will be sent the error message
+ * 
+ * ctx: server context
+ * 
+ * Returns: Char*
+ */ 
+char* construct_error(char* error, char* command, user* user_src, server_ctx* ctx);
 
 
 #endif /* CHIRC_UTIL_H_ */

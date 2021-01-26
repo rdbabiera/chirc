@@ -27,7 +27,11 @@ void match(char* command_str, user* user, server_ctx* ctx)
                 {"USER", user_fn},
                 {"QUIT", quit_fn},
                 {"PING", ping_fn},
-                {"PONG", pong_fn}
+                {"PONG", pong_fn},
+                {"PRIVMSG", privmsg_notice_fn},
+                {"NOTICE", privmsg_notice_fn},
+                {"LUSERS", lusers_fn},
+                {"WHOIS", whois_fn}
                 };
 
     // Getting command from command_str
@@ -46,17 +50,13 @@ void match(char* command_str, user* user, server_ctx* ctx)
         {
             free(temp_str);
             command_arr[i].execute_cmd(command_str, user, ctx);
-            matched == true;
             return;
         }
     }
 
-    if (matched == false) 
-    {
-        char* error = construct_message(ERR_UNKNOWNCOMMAND, NULL, user, command, NULL);
-        send_message(error, user);
-        return;
-    }
+    char* error = construct_message(ERR_UNKNOWNCOMMAND, NULL, user, command, NULL);
+    send_message(error, user);
+    return;
 }
 
 

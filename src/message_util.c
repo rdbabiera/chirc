@@ -44,7 +44,7 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
     char** res = tokenize_message(command_str, " ", 2);
     nickname = res[1];
     
-    chilog(INFO, "BREAKPOINT 1");
+    chilog(DEBUG, "BREAKPOINT 1");
     // If nickname is already in user list, send out error message
     for (u = user_list; u != NULL; u=u->hh.next)
     {
@@ -59,7 +59,7 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
             return;
         }
     }
-    chilog(INFO, "BREAKPOINT 2");
+    chilog(DEBUG, "BREAKPOINT 2");
 
     //If nickname is null, send out error message
     if (nickname == NULL)
@@ -105,6 +105,7 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
         status = sprintf(my_info, 
                 ":%s %s %s :%s 420.60 ao mtov\r\n", 
                 ctx->server_name, RPL_MYINFO, user->nick, ctx->server_name);
+
 
         send_message(welcome, user);
         send_message(your_host, user);
@@ -247,29 +248,51 @@ void quit_fn(char* command_str, user* user, server_ctx* ctx)
 
 
 // Send a private message
-void privmsg_fn(char* command_str, user* user, server_ctx* ctx)
+void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
 {
     char* dst_nickname;
     struct user* dst_user;
 
     char* msg;
+    char* command;
 
-    // Order: command line, destination user
+    // Order: command line, message
     char** res1 = tokenize_message(command_str, ":", 2);
-    // Order: 
+    // Order: command, dst user
     char** res2 = tokenize_message(res1[0], " ", 2);
 
     dst_nickname = res2[1];
     msg = res1[1];
-    if (msg == NULL)
+    command = res2[0];
 
     // find desired user
     dst_user = user_lookup(ctx->user_list, 0, dst_nickname, 0);
+
+    // If message is empty, error
+    if (msg == NULL) 
+    {
+        //error handle ERR_NOTEXTTOSEND
+    }
+
+    // If no target is provided, error
+    if (dst_nickname == NULL)
+    {
+        //error handle ERR_NORECIPIENT
+        return;
+    }
+    
+    // If no user is found with given nickname, error
     if (dst_user == NULL)
     {
         //error handle ERR_NOSUCHNICK
+        return;
     }
     send_message(msg, dst_user);
+
+    if (command == "NOTICE") 
+    {
+        // no automatic reply allowed
+    }
     
 
 }
@@ -278,8 +301,14 @@ void privmsg_fn(char* command_str, user* user, server_ctx* ctx)
 // ping
 void ping_fn(char* command_str, user* user, server_ctx* ctx)
 {
-    char* response = construct_message("PONG", NULL, NULL, ctx->server_name, NULL);
+    // char* response = construct_message("PONG", NULL, NULL, ctx->server_name, NULL);
+    int status;
+    char* response = (char*)malloc(sizeof(char)*512);
+    status = sprintf(response, ":%s PONG %s :%s\r\n", 
+            ctx->server_name, user->nick, ctx->server_name);
+
     send_message(response, user);
+    free(response);
 }
 
 
@@ -304,11 +333,81 @@ void pong_fn(char* command_str, user* user, server_ctx* ctx)
 
 void lusers_fn(char* command_str, user* user, server_ctx* ctx)
 {
+    int status;
+    int user_count, service_count, server_count, op_count;
+    int unknown_count, channel_count;
+    user_count = service_count = op_count = 0;
+    unknown_count = channel_count = 0;
+    server_count = 1;
+    // ERRORS: RPL_LUSERCLIENT, RPL_LUSEROP, RPL_LUSERUNKNOWN,
+    // RPL_LUSERCHANNELS, RPL_LUSERME
+    struct user* user_list = ctx->user_list;
+    struct user* u;
+    for (u = user_list; u != NULL; u=u->hh.next)
+    {
+        user_count++;
+        if ((u->nick == NULL) && (u->username == NULL))
+        {
+            unknown_count++;
+            user_count--;
+        }
+        if (u->operator)
+        {
+            op_count++;
+        }
+    }
 
+    // This isnt done ^
+
+    // RPL_USERCLIENT
+    // ":%s 251 %s :There are x users and x services on 1 servers"
+
+    // RPL_LUSEROP
+    // ":%s 252 %s x :operator(s) online\r\n"
+
+    // RPL_LUSERUNKNOWN
+    // ":%s 253 %s x :unknown connection(s)"
+
+    // RPL_LUSERCHANNELS
+    // ":%s 254 %s x :channels formed"
+
+    // RPL_LUSERME
+    // ":%s 255 %s :I have x clients and x servers"
 }
 
 void whois_fn(char* command_str, user* user, server_ctx* ctx)
 {
+    // REPLIES: RPL_WHOISUSER, RPL_WHOISSERVER, RPL_ENDOFWHOIS
+    // LATER: RPL_WHOISOPERATOR, RPL_WHOISCHANNELS, RPL_AWAY
+    char* nick;
+
+    if (validate_parameters(command_str, 1, user) == -1)
+    {
+        return;
+    }
+
+    // Order: Command, Nick Target
+    char** res = tokenize_message(command_str, " ", 2);
+    struct user* target = user_lookup(ctx->user_list, 0, res[1], 0);
+    if (target == NULL)
+    {
+        // ERR_NOSUCHNICK
+        return;
+    }
+    
+    // RPL_WHOISUSER - server_name, user->nick, target->nick
+    // target->user, target->fullname
+    // ":%s 311 %s %s %s %s * :%s"
+    // send message, free it
+
+    // RPL_WHOISSERVER - first two usual, target->nick, servername
+    // arbitrary. lets say last one is "big chungus"
+    // ":%s 312 %s %s %s :%s"
+    // send message, free it
+
+    // RPL_ENDOFWHOIS - usual2 + target->nick
+    // ":%s 318 %s %s :End of WHOIS list"
+    // send message, free it
 
 }
 
@@ -372,6 +471,42 @@ char* construct_message(char* command, user* user_src, user* user_dest,
     {
         status = sprintf(res, ":I have %s clients and %s servers\r\n", 
                         extra1, extra2);
+    }
+    return res;
+}
+
+
+// Construct an error message based on the error given
+char* construct_error(char* error, char* command, user* user, server_ctx* ctx)
+{
+    char* res = (char*)malloc(sizeof(char)*512);
+    int status;
+
+    if (!strcmp(error, ERR_ALREADYREGISTRED))
+    {
+        status = sprintf(res, ":%s %s %s :Unauthorized command \
+                        (already registered)\r\n", ctx->server_name, 
+                        ERR_ALREADYREGISTRED, user->nick);
+    }
+    else if (!strcmp(error, ERR_NEEDMOREPARAMS))
+    {
+        status = sprintf(res, ":%s %s %s :%s :Not enough parameters\r\n", 
+                            ctx->server_name, ERR_NEEDMOREPARAMS, user->nick, command);
+    }
+    else if (!strcmp(error, ERR_NOTREGISTERED))
+    {
+        status = sprintf(res, ":%s %s %s :You have not registered\r\n",
+                        ctx->server_name, ERR_NOTREGISTERED, user->nick);
+    }
+    else if (!strcmp(error, ERR_UNKNOWNCOMMAND))
+    {
+        status = sprintf(res, ":%s %s %s : %s :Unknown command\r\n", ctx->server_name,
+                        ERR_UNKNOWNCOMMAND, user->nick, command);
+    }
+    else if (!strcmp(error, ERR_NOTEXTTOSEND))
+    {
+        status = sprintf(res, ":%s %s %s :No text to send", ctx->server_name,
+                        ERR_NOTEXTTOSEND, user->nick)
     }
     return res;
 }
