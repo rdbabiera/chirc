@@ -52,7 +52,7 @@ user* user_lookup(user** user_list, int type, char* parameter, int parameter2)
         }
     } else if (type == 1)
     {
-        for (u = user_list; u != NULL; u=u->hh.next)
+        for (u = *user_list; u != NULL; u=u->hh.next)
         {
             if (!strcmp(parameter, u->username)){
                 res = u;
@@ -61,7 +61,7 @@ user* user_lookup(user** user_list, int type, char* parameter, int parameter2)
         }
     } else if (type == 2)
     {
-        for (u = user_list; u != NULL; u=u->hh.next)
+        for (u = *user_list; u != NULL; u=u->hh.next)
         {
             if (parameter2 == u->client_socket)
             {

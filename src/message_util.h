@@ -143,6 +143,66 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx);
  */
 void whois_fn(char* command_str, user* user, server_ctx* ctx);
 
+
+/*
+ * join_fn - Allows client to join/create a channel
+ * 
+ * user: destination user/channel for message
+ * 
+ * ctx: server context
+ * 
+ * Returns: nothing
+ */
+void join_fn(char* command_str, user* user, server_ctx* ctx);
+
+
+/*
+ * part_fn - Allows client to leave/delete a channel
+ * 
+ * user: destination user/channel for message
+ * 
+ * ctx: server context
+ * 
+ * Returns: nothing
+ */
+void part_fn(char* command_str, user* user, server_ctx* ctx);
+
+
+/*
+ * list_fn - Lists channels, amount of users in a channel, and topic
+ * 
+ * user: destination user/channel for message
+ * 
+ * ctx: server context
+ * 
+ * Returns: nothing
+ */
+void list_fn(char* command_str, user* user, server_ctx* ctx);
+
+
+/*
+ * mode_fn - Allows user to assign channel operator modes to users
+ * 
+ * user: destination user/channel for message
+ * 
+ * ctx: server context
+ * 
+ * Returns: nothing
+ */
+void mode_fn(char* command_str, user* user, server_ctx* ctx);
+
+
+/*
+ * oper_fn - Allows client to become an irc operator
+ * 
+ * user: destination user/channel for message
+ * 
+ * ctx: server context
+ * 
+ * Returns: nothing
+ */
+void oper_fn(char* command_str, user* user, server_ctx* ctx);
+
 /**************** Functions for Constructing a Message ****************/
 
 /*

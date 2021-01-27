@@ -91,6 +91,7 @@ void *service_single_client(void *args)
     long command_length = 0;
     long remaining_length = 0;
 
+
     while(1)
     {
         chilog(INFO, "Waiting for a message...\n");
@@ -217,8 +218,9 @@ int main(int argc, char *argv[])
 
     /* Your code goes here */
     /**************** Code to manage Server Context *****************/
-    server_ctx* server_ctx = malloc(sizeof(server_ctx));
-    server_ctx->user_list = NULL;
+    server_ctx* server_ctx = (struct server_ctx*)malloc(sizeof(struct server_ctx));
+    server_ctx->user_list = (user**)malloc(sizeof(user*));
+    *server_ctx->user_list = NULL;
     server_ctx->channel_list = NULL;
     server_ctx->channel_count = 0;
     server_ctx->operator_password = passwd;
@@ -231,6 +233,7 @@ int main(int argc, char *argv[])
     socklen_t sin_size = sizeof(struct sockaddr_in);
     struct worker_args *wa;
     int yes = 1;
+    user* curr_user = NULL;
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
@@ -315,11 +318,13 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        // Initialize user
         user* curr_user = user_init(active_socket, (struct sockaddr*) client_addr, 
                                     sin_size);
+
         // add user management to server here
-        HASH_ADD_INT(*(server_ctx->user_list), client_socket, curr_user);
+        chilog(INFO, "About to add\n");
+        HASH_ADD_INT(*server_ctx->user_list, client_socket, curr_user);
+        chilog(INFO, "Added\n");
         
         wa = calloc(1, sizeof(worker_args));
         // add worker args here

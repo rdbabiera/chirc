@@ -5,8 +5,10 @@
 #include <pthread.h>
 #include <time.h>
 
+#include "log.h"
 #include "message.h"
 #include "message_util.h"
+#include "parse_util.h"
 #include "reply.h"
 #include "users.h"
 
@@ -22,7 +24,7 @@ void match(char* command_str, user* user, server_ctx* ctx)
     matched == false;
 
     // Filling out command array 
-    cmd command_arr[5] = {
+    cmd command_arr[14] = {
                 {"NICK", nick_fn}, 
                 {"USER", user_fn},
                 {"QUIT", quit_fn},
@@ -31,19 +33,25 @@ void match(char* command_str, user* user, server_ctx* ctx)
                 {"PING", ping_fn},
                 {"PONG", pong_fn},
                 {"LUSERS", lusers_fn},
-                {"WHOIS", whois_fn}
+                {"WHOIS", whois_fn},
+                {"JOIN", join_fn},
+                {"PART", part_fn},
+                {"LIST", list_fn},
+                {"MODE", mode_fn},
+                {"OPER", oper_fn},
                 };
 
     // Getting command from command_str
     char* command = strtok_r(temp_str, " ", &saveptr1);
+    
 
-
-    for(int i = 0; i < 5; i++)
+    for(int i = 0; i < 14; i++)
     {
         if ((user->registered == false) && (i > 1)) 
         {
-            char* error = construct_message(ERR_NOTREGISTERED, NULL, user, NULL, NULL);
+            char* error = construct_message(ERR_NOTREGISTERED, ctx, user, NULL, NULL);
             send_message(error,user);
+            free(error);
             return;
         }
         if (!strcmp(command_arr[i].cmd_name, command)) 
@@ -54,8 +62,12 @@ void match(char* command_str, user* user, server_ctx* ctx)
         }
     }
 
-    char* error = construct_message(ERR_UNKNOWNCOMMAND, NULL, user, command, NULL);
+    char** invalid_command = (char**)malloc(sizeof(char*));
+    invalid_command[0] = command;
+    char* error = construct_message(ERR_UNKNOWNCOMMAND, ctx, user, invalid_command, NULL);
     send_message(error, user);
+    free_tokens(invalid_command, 1);
+    free(temp_str);
     return;
 }
 

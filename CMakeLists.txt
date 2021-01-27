@@ -11,6 +11,7 @@ include_directories(src
     )
 
 add_executable(chirc
+    src/channels.c
     src/log.c
     src/main.c
     src/message.c

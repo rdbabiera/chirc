@@ -19,7 +19,7 @@
 #include "uthash.h"
 #include "utlist.h"
 
-// 
+/* Initializes a channel */
 channel* channel_init(char* channel_name, int cd, channel** channel_list)
 {
     channel* new = (channel*)malloc(sizeof(channel));
@@ -31,7 +31,7 @@ channel* channel_init(char* channel_name, int cd, channel** channel_list)
 
 
 
-//
+/* Deletes a channel from the server */
 void channel_delchannel(channel* target, channel** channel_list)
 {
     channel* temp;
@@ -48,7 +48,7 @@ void channel_delchannel(channel* target, channel** channel_list)
 }
 
 
-// 
+/* Looksup a channel by name */ 
 channel* channel_lookup(char* channel_name, channel** channel_list)
 {
     channel* c = NULL;
@@ -63,8 +63,8 @@ channel* channel_lookup(char* channel_name, channel** channel_list)
 }
 
 
-//
-int channel_verifyuser(channel* channel, user* user)
+/* Verifies whether or not a user is in a channel */
+bool channel_verifyuser(channel* channel, user* user)
 {
     struct user* u = NULL;
     int len;
@@ -73,35 +73,35 @@ int channel_verifyuser(channel* channel, user* user)
         len = strnlen(u->nick, MAX_BUFF_SIZE);
         if (!strncmp(user->nick, u->nick, len))
         {
-            return 1;
+            return true;
         }
     }
-    return -1;
+    return false;
 }
 
-//
-int channel_verifyoperator(channel* channel, user* user)
+/* Verifies whether or not a user is an operator in a channel */
+bool channel_verifyoperator(channel* channel, user* user)
 {
     struct user* u = NULL;
     for (u = *(channel->operator_list); u != NULL; u=u->hh.next)
     {
         if (u == user)
         {
-            return 1;
+            return true;
         }
     }
-    return -1;
+    return false;
 }
 
 
-//
+/* Adds a User to a Channel */
 void channel_adduser(channel* channel, user* user)
 {
     HASH_ADD_INT(*(channel->user_list), client_socket, user);
     channel->num_users++;
 }
 
-
+/* Adds a User to a Channel's Operators List */
 void channel_addoperator(channel* channel, user* user)
 {
     struct user* u = NULL;
@@ -116,7 +116,7 @@ void channel_addoperator(channel* channel, user* user)
 }
 
 
-//
+/* Removes a User from a Channel */
 void channel_deluser(channel* channel, user* user)
 {
     if (*(channel->user_list) == user)
@@ -131,7 +131,7 @@ void channel_deluser(channel* channel, user* user)
 }
 
 
-// 
+/* Removes a User from a Channel's Operators List */
 void channel_deop(channel* channel, user* user)
 {
     struct user* u = NULL;

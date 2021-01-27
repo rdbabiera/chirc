@@ -29,18 +29,18 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
     struct user* u;
     struct user** user_list;
     char* error;
-
-    user_list = ctx->user_list;
     
     /* Order: command, nickname */
     char** res = tokenize_message(command_str, " ", 2);
+    nickname = res[1];
 
-    chilog(DEBUG, "BREAKPOINT 1");
+    chilog(INFO, "BREAKPOINT 1");
 
     /* If nickname is already in user list, send out error message */
-    for (u = *user_list; u != NULL; u=u->hh.next)
+    for (u = *(ctx->user_list); u != NULL; u=u->hh.next)
     {
-        if (!strncmp(nickname, u->nick, MAX_BUFF_SIZE))
+        chilog(INFO, "BREAKPOINT 1.1");
+        if ((u->registered) && (!strncmp(nickname, u->nick, MAX_BUFF_SIZE)))
         {
             if (user->nick == NULL)
             {
@@ -81,7 +81,7 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
     free_tokens(res, 2);
 
     /* Handle User Registration */
-    char* welcome, your_host, created, my_info;
+    char *welcome, *your_host, *created, *my_info;
 
     if ((user->username != NULL) && (user->registered == false))
     {
@@ -143,7 +143,7 @@ void user_fn(char* command_str, user* user, server_ctx* ctx)
     if (validate_parameters(command_str, 4, user, ctx) == -1)
     {
         error = construct_message(ERR_NEEDMOREPARAMS, ctx, user, res2, true);
-        send_message(user, error);
+        send_message(error, user);
         free(error);
         free_tokens(res1, 2);
         free_tokens(res2, 4);
@@ -160,7 +160,7 @@ void user_fn(char* command_str, user* user, server_ctx* ctx)
     free_tokens(res2, 4);
 
     /* Handle user registration */
-    char* welcome, your_host, created, my_info;
+    char *welcome, *your_host, *created, *my_info;
     if ((user->nick != NULL) && (user->registered == false))
     {
         welcome = construct_message(RPL_WELCOME, ctx, user, NULL, false);
@@ -212,7 +212,7 @@ void quit_fn(char* command_str, user* user, server_ctx* ctx)
     free(new_msg);
 
     /* Remove user from server ctx */
-    user_delete(*(ctx->user_list), user);
+    user_delete(ctx->user_list, user);
     chilog(INFO, "USER closed\n");
     pthread_exit(NULL);
 }
@@ -223,7 +223,7 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
 {
     char* dst_nickname;
     struct user* dst_user;
-    char* msg, command, error, complete_msg;
+    char *msg, *command, *error, *complete_msg;
 
     /* Order: command line, message */
     char** res1 = tokenize_message(command_str, ":", 2);
@@ -244,7 +244,7 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
     if (msg == NULL) 
     {
         error = construct_message(ERR_NOTEXTTOSEND, ctx, user, NULL, true);
-        send_message(user, error);
+        send_message(error, user);
         free_tokens(res1, 2);
         free_tokens(res2, 3);
         free(error);
@@ -255,7 +255,7 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
     if (dst_nickname == NULL)
     {
         error = construct_message(ERR_NORECIPIENT, ctx, user, res2, true);
-        send_message(user, error);
+        send_message(error, user);
         free_tokens(res1, 2);
         free_tokens(res2, 3);
         free(error);
@@ -266,7 +266,7 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
     if (dst_user == NULL)
     {
         error = construct_message(ERR_NOSUCHNICK, ctx, user, res2, true);
-        send_message(user, error);
+        send_message(error, user);
         free_tokens(res1, 2);
         free_tokens(res2, 3);
         free(error);
@@ -280,7 +280,7 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
     // } 
     // else 
     // {
-    char* complete_msg = construct_msg("PRIVMSG", ctx, user, res2, false);
+    complete_msg = construct_message("PRIVMSG", ctx, user, res2, false);
     send_message(msg, dst_user);
     free_tokens(res1, 2);
     free_tokens(res2, 3);
@@ -338,11 +338,13 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx)
 
     char* client, op, unknown, channels, me;
 
+    /*
     client = construct_message(RPL_LUSERCLIENT, ctx, user, params, false);
     op = construct_message(RPL_LUSEROP, ctx, user, params, false);
     unknown = construct_message(RPL_LUSERUNKNOWN, ctx, user, params, false);
     channels = construct_message(RPL_LUSERCHANNELS, ctx, user, params, false);
     me = construct_message(RPL_LUSERME, ctx, user, params[], false);
+    
 
     send_message(client, user);
     send_message(op, user);
@@ -355,6 +357,7 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx)
     free(unknown);
     free(channels);
     free(me); //please
+    */
 
     return;
     
@@ -385,7 +388,7 @@ void whois_fn(char* command_str, user* user, server_ctx* ctx)
         return;
     }
     
-    char* whois_user, server, end;
+    char *whois_user, *server, *end;
     
     whois_user = construct_message(RPL_WHOISUSER, ctx, user, res, false);
     server = construct_message(RPL_WHOISSERVER, ctx, user, res, false);
@@ -497,7 +500,7 @@ void part_fn(char* command_str, user* user, server_ctx* ctx)
 
         for (c=*(ctx->channel_list); c != NULL; c=c->hh.next)
         {   
-            send_message(parting_message, c);         
+            // send_message(parting_message, c); <- wrong        
             // send each user an f in chat for their lad
         }
         free(parting_message);
@@ -509,10 +512,37 @@ void part_fn(char* command_str, user* user, server_ctx* ctx)
 
 void list_fn(char* command_str, user* user, server_ctx* ctx)
 {
-    if (validate_parameters(command_str, 2, user, ctx))
+    bool all_channels = true;
+    channel* c;
+
+    if (validate_parameters(command_str, 1, user, ctx))
     {
-        // ERR_NEEDMOREPARAMS
+        all_channels = false;
     }
+    /* Order: COMMAND, CHANNEL*/
+    char** res = tokenize_message(command_str, " ", 2);
+
+    if (all_channels)
+    {
+        for (c=*ctx->channel_list; c != NULL; c=c->hh.next)
+        {
+            // RPL_LIST
+            //msg format: :<servername> 322 <nick> <channel> <channel->num_users> :<topic>
+            // we dont support topic, so leave it blank.
+        }
+    }
+    else
+    {
+        c = channel_lookup(res[1], ctx->channel_list);
+        if (c == NULL)
+        {
+            // We're not supposed to support this error
+        }
+        // RPL_LIST
+        // :<servername> 322 <nick> <channel> <channel->num_users> :<topic>
+    }
+    // RPL_LISTEND
+    // :<servername> 323 <nick> :End of LIST
 
 }
 
@@ -521,7 +551,7 @@ void mode_fn(char* command_str, user* user, server_ctx* ctx)
 
     bool ischannelop = false;
     int mode = 0;
-    user* temp;
+    struct user* temp;
 
     // ERRORS: ERR_NOSUCHCHANNEL, ERR_CHANOPRIVSNEEDED,
     // ERR_UNKNOWNMODE, ERR_USERNOTINCHANNEL
@@ -539,7 +569,7 @@ void mode_fn(char* command_str, user* user, server_ctx* ctx)
         free_tokens(res1, 4);
         return;
     }
-    user* u = user_lookup(ctx->user_list, 0, res[3], 0);
+    struct user* u = user_lookup(ctx->user_list, 0, res1[3], 0);
     if ((u == NULL) || (channel_verifyuser(c, u) == -1))
     {
         // ERR_USERNOTINCHANNEL
@@ -581,13 +611,13 @@ void mode_fn(char* command_str, user* user, server_ctx* ctx)
         // :<user-nick> MODE <channel> <target-nick> :<mode>
         // user->nick, res1[1], res1[3], res1[2]
         // send_message
-        for(temp = *channel->user_list; temp != NULL; temp=temp->hh.next)
+        for(temp = *c->user_list; temp != NULL; temp=temp->hh.next)
         {
             // send_message
         }
         /// free message
         free(message);
-        free_tokens(res2, 4);
+        free_tokens(res1, 4);
     }
     else
     {
@@ -752,7 +782,9 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
                             ctx->server_name, user->nick, ctx->server_name);
         }
 
+        
         /* LUSERS messages */
+        /*
         else if (!strncmp(msg, RPL_LUSERCLIENT, ERROR_SIZE))
         {
             status = sprintf(res, "%s %s %s :There are %s users and %s services \
@@ -783,6 +815,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
                             servers\r\n", ctx->server_name, RPL_LUSERME,
                             user->nick, params[], params[])
         }
+        */
 
         /* WHOIS messages */
         else if (!strncmp(msg, RPL_WHOISUSER, ERROR_SIZE))
