@@ -27,7 +27,7 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
 {
     char *nickname;
     struct user* u;
-    struct user* user_list;
+    struct user** user_list;
     char* error;
 
     user_list = ctx->user_list;
@@ -38,7 +38,7 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
     chilog(DEBUG, "BREAKPOINT 1");
 
     // If nickname is already in user list, send out error message
-    for (u = user_list; u != NULL; u=u->hh.next)
+    for (u = *user_list; u != NULL; u=u->hh.next)
     {
         if (!strcmp(nickname, u->nick))
         {
@@ -226,7 +226,7 @@ void quit_fn(char* command_str, user* user, server_ctx* ctx)
     free(new_msg);
 
     // Ri, pls remove user from user_list and server_ctx
-    user_delete(ctx->user_list, user);
+    user_delete(*(ctx->user_list), user);
     chilog(INFO, "USER closed\n");
     pthread_exit(NULL);
     // it is done
@@ -327,9 +327,9 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx)
     server_count = 1;
     // ERRORS: RPL_LUSERCLIENT, RPL_LUSEROP, RPL_LUSERUNKNOWN,
     // RPL_LUSERCHANNELS, RPL_LUSERME
-    struct user* user_list = ctx->user_list;
+    struct user** user_list = ctx->user_list;
     struct user* u;
-    for (u = user_list; u != NULL; u=u->hh.next)
+    for (u = *user_list; u != NULL; u=u->hh.next)
     {
         user_count++;
         if ((u->nick == NULL) && (u->username == NULL))
@@ -352,10 +352,10 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx)
     // ":%s 252 %s x :operator(s) online\r\n"
 
     // RPL_LUSERUNKNOWN
-    // ":%s 253 %s x :unknown connection(s)"
+    // ":%s 253 %s x :unknown connection(s)\r\n"
 
     // RPL_LUSERCHANNELS
-    // ":%s 254 %s x :channels formed"
+    // ":%s 254 %s x :channels formed\r\n"
 
     // RPL_LUSERME
     // ":%s 255 %s :I have x clients and x servers"
@@ -394,6 +394,107 @@ void whois_fn(char* command_str, user* user, server_ctx* ctx)
     // RPL_ENDOFWHOIS - usual2 + target->nick
     // ":%s 318 %s %s :End of WHOIS list"
     // send message, free it
+
+}
+
+void join_fn(char* command_str, user* user, server_ctx* ctx)
+{
+    if (validate_parameters(command_str, 1, user) == -1)
+    {
+        // ERR_NEEDMOREPARAMS
+    }
+
+    // Order: COMMAND, CHANNEL
+    char** res1 = tokenize_message(command_str, " ", 2);
+    /*
+    if (res1[1][0] != '#')
+    {
+        // ERR_NEEDMOREPARAMS
+    }
+    char** res2 = tokenize_message(res1[1], "#", 1);
+    */
+    char* channel_name = res1[1];
+    channel* c = channel_lookup(channel_name, ctx->channel_list);
+    if (c == NULL)
+    {
+        ctx->channel_count++;
+        c = channel_init(channel_name, ctx->channel_count, ctx->channel_list);
+    }
+    channel_adduser(c, user);
+
+    // Send confirmation to all other users (@sign before channel operators)
+
+
+    // Send confirmation to user
+
+
+    // RPL_NAMREPLY
+
+
+    // RPL_ENDOFNAMES
+
+}
+
+
+void part_fn(char* command_str, user* user, server_ctx* ctx)
+{
+    /* Part Algorithm:
+     * Check to see if there is two parameters, and then one. If none, exit
+     * Check to see if that channel exists. If not, return error.
+     * Check to see if user is in that channel. If not, return error.
+     * Remove user from channel + channel list.
+     * If channel is empty, destroy it.
+     */
+
+    bool part_msg = true;
+    int tokens = 3;
+
+    if (validate_parameters(command_str, 2, user) == -1)
+    {
+        part_msg = false;
+        tokens = 2;
+        if (validate_parameters(command_str, 1, user) == -1)
+        {
+            // ERR_NEEDMOREPARAMS
+        }
+    }
+
+    // Order: COMMAND, CHANNEL, MESSAGE
+    char** res1 = tokenize_message(command_str, " ", tokens);
+    char* channel_name = res1[1];
+    if (part_msg)
+    {
+        char** res2 = tokenize_message(res1[2], ":", 1);
+        char* message = res2[0];
+    }
+
+    channel* c = channel_lookup(channel_name, ctx->channel_list);
+    if (c == NULL)
+    {
+        // ERR_NOSUCHCHANNEL
+    }
+    if (channel_verifyuser(c, user) == -1)
+    {
+
+    }
+
+}
+
+void list_fn(char* command_str, user* user, server_ctx* ctx)
+{
+
+
+}
+
+void mode_fn(char* command_str, user* user, server_ctx* ctx)
+{
+
+
+}
+
+void oper_fn(char* command_str, user* user, server_ctx* ctx)
+{
+
 
 }
 

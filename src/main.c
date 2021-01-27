@@ -53,6 +53,7 @@
 #include <pthread.h>
 
 #include "users.h"
+#include "channels.h"
 #include "server_info.h"
 #include "message.h"
 #include "reply.h"
@@ -60,6 +61,7 @@
 
 #include "uthash.h"
 #include "utlist.h"
+
 
 
 // Function that runs in each thread to service a single client
@@ -79,8 +81,8 @@ void *service_single_client(void *args)
     chilog(INFO, "Socket connected\n");
 
     // Parameters for Receiving Data
-    char buff[513]; // buffer for messages
-    char msg[513]; 
+    char buff[MAX_SIZE]; // buffer for messages
+    char msg[MAX_SIZE]; 
     int recv_status;
     char* carr_found;
     long msg_offset = 0;
@@ -216,8 +218,9 @@ int main(int argc, char *argv[])
     /* Your code goes here */
     /**************** Code to manage Server Context *****************/
     server_ctx* server_ctx = malloc(sizeof(server_ctx));
-    user* user_list = NULL;
-    server_ctx->user_list = user_list;
+    server_ctx->user_list = NULL;
+    server_ctx->channel_list = NULL;
+    server_ctx->channel_count = 0;
 
     /**************** Functions for Handling Sockets ****************/
     int passive_socket, active_socket;
@@ -286,7 +289,13 @@ int main(int argc, char *argv[])
     }
 
     // Get hostname for the server
-    gethostname(hostname, sizeof hostname);
+    int host_check = gethostname(hostname, sizeof hostname);
+    if (host_check == -1) 
+    {
+        perror("gethostname() failed");
+        exit(2);
+    }
+
     server_ctx->server_name = hostname;
 
     chilog(INFO, "Waiting for a connection...\n");
@@ -306,10 +315,10 @@ int main(int argc, char *argv[])
         }
 
         // Initialize user
-        user* curr_user = user_init(active_socket, 
-            (struct sockaddr*) client_addr, sin_size);
+        user* curr_user = user_init(active_socket, (struct sockaddr*) client_addr, 
+                                    sin_size);
         // add user management to server here
-        HASH_ADD_INT(user_list, client_socket, curr_user);
+        HASH_ADD_INT(*(server_ctx->user_list), client_socket, curr_user);
         
         wa = calloc(1, sizeof(worker_args));
         // add worker args here
@@ -321,7 +330,7 @@ int main(int argc, char *argv[])
             perror("Could not create a worker thread");
             free(client_addr);
             free(wa);
-            HASH_DEL(server_ctx->user_list, curr_user);
+            HASH_DEL(*(server_ctx->user_list), curr_user);
             close(active_socket);
             close(passive_socket);
             return EXIT_FAILURE;

@@ -10,10 +10,15 @@
 #define CHIRC_SERVER_INFO_H_
 
 #include "users.h"
+#include "channels.h"
+
+#define MAX_SIZE 513
 
 // Server context struct
 typedef struct server_ctx {
-    user* user_list;
+    user** user_list;
+    channel** channel_list;
+    int channel_count;
     char* server_name;
 } server_ctx;
 

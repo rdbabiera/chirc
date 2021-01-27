@@ -21,9 +21,9 @@ user* user_init(int socket, struct sockaddr* sa, socklen_t salen)
 {
     int status;
     user* new_user = (user*)malloc(sizeof(user));
-    new_user -> nick = NULL;
-    new_user -> username = NULL;
-    new_user -> client_socket = socket;
+    new_user->nick = NULL;
+    new_user->username = NULL;
+    new_user->client_socket = socket;
     status = getnameinfo(sa, salen, new_user->client_host, 128, 
         new_user->client_service, 128, 0);
     
@@ -34,7 +34,7 @@ user* user_init(int socket, struct sockaddr* sa, socklen_t salen)
 }
 
 // Lookup a user
-user* user_lookup(user* user_list, int type, char* parameter, int parameter2)
+user* user_lookup(user** user_list, int type, char* parameter, int parameter2)
 {
     user* res = NULL;
     user* u;
@@ -42,7 +42,7 @@ user* user_lookup(user* user_list, int type, char* parameter, int parameter2)
     //Types: 0 = nickname, 1 = username, 2 = socket
     if (type == 0)
     {
-        for (u = user_list; u != NULL; u=u->hh.next)
+        for (u = *user_list; u != NULL; u=u->hh.next)
         {
             if (!strcmp(parameter, u->nick)){
                 res = u;
@@ -75,17 +75,16 @@ user* user_lookup(user* user_list, int type, char* parameter, int parameter2)
 
 
 // Delete a user from a userlist
-void user_delete(user* user_list, user* target)
+void user_delete(user** user_list, user* target)
 {
     user* temp;
-    if (user_list == target)
+    if (*user_list == target)
     {
-        user_list = user_list->hh.next;
+        *user_list = target->hh.next;
     } 
     else 
     {
-        chilog(INFO, "Blink once\n");
-        HASH_DEL(user_list, target);
+        HASH_DEL(*user_list, target);
     }
     close(target->client_socket);
     pthread_mutex_destroy(&target->socket_mutex);

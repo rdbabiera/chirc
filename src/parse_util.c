@@ -14,7 +14,7 @@
 #include "log.h"
 #include "parse_util.h"
 #include "message_util.h"
-
+#include "channels.h"
 
 
 /**************** Functions for Tokenizing Messages ****************/
