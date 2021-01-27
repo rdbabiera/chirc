@@ -81,8 +81,8 @@ void *service_single_client(void *args)
     chilog(INFO, "Socket connected\n");
 
     // Parameters for Receiving Data
-    char buff[MAX_SIZE]; // buffer for messages
-    char msg[MAX_SIZE]; 
+    char buff[MAX_BUFF_SIZE]; // buffer for messages
+    char msg[MAX_BUFF_SIZE]; 
     int recv_status;
     char* carr_found;
     long msg_offset = 0;
@@ -221,6 +221,7 @@ int main(int argc, char *argv[])
     server_ctx->user_list = NULL;
     server_ctx->channel_list = NULL;
     server_ctx->channel_count = 0;
+    server_ctx->operator_password = passwd;
 
     /**************** Functions for Handling Sockets ****************/
     int passive_socket, active_socket;

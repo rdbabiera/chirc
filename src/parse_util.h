@@ -19,6 +19,7 @@
 #include <stdbool.h>
 
 #include "users.h"
+#include "server_info.h"
 
 #include "uthash.h"
 #include "utlist.h"
@@ -59,7 +60,7 @@ void free_tokens(char** tokens, int num_tokens);
  * validate_parameters - validates the number of parameters in a command
  * 
  */
-int validate_parameters(char* command, int target_params, user* user);
+int validate_parameters(char* command, int target_params, user* user, server_ctx* ctx);
 
 
 

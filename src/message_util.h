@@ -157,7 +157,7 @@ void whois_fn(char* command_str, user* user, server_ctx* ctx);
  * 
  * params: list of extra parameters as needed for the error
  * 
- * RPL: A boolean that tells whether the message is an RPL message or an error
+ * error: A boolean that tells whether the message is an error or something else
  * 
  * Returns: char*
  * 
@@ -167,7 +167,7 @@ void whois_fn(char* command_str, user* user, server_ctx* ctx);
  * 
  */
 char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
-                        bool RPL);
+                        bool error);
 
 
 

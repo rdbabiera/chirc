@@ -12,7 +12,8 @@
 #include "users.h"
 #include "channels.h"
 
-#define MAX_SIZE 513
+#define MAX_BUFF_SIZE 513
+#define ERROR_SIZE 3
 
 // Server context struct
 typedef struct server_ctx {
@@ -20,6 +21,7 @@ typedef struct server_ctx {
     channel** channel_list;
     int channel_count;
     char* server_name;
+    char* operator_password;
 } server_ctx;
 
 

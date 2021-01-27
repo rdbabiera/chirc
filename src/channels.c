@@ -30,6 +30,24 @@ channel* channel_init(char* channel_name, int cd, channel** channel_list)
 }
 
 
+
+//
+void channel_delchannel(channel* target, channel** channel_list)
+{
+    channel* temp;
+    if (*channel_list == target)
+    {
+        *channel_list = target->hh.next;
+    } 
+    else 
+    {
+        HASH_DEL(*channel_list, target);
+    }
+    free(target->channel_name);
+    free(target->user_list);
+}
+
+
 // 
 channel* channel_lookup(char* channel_name, channel** channel_list)
 {
@@ -44,11 +62,35 @@ channel* channel_lookup(char* channel_name, channel** channel_list)
     }
 }
 
+
 //
 int channel_verifyuser(channel* channel, user* user)
 {
-    user* u = NULL;
-    for ()
+    struct user* u = NULL;
+    int len;
+    for (u = *(channel->user_list); u != NULL; u=u->hh.next)
+    {
+        len = strnlen(u->nick, MAX_BUFF_SIZE);
+        if (!strncmp(user->nick, u->nick, len))
+        {
+            return 1;
+        }
+    }
+    return -1;
+}
+
+//
+int channel_verifyoperator(channel* channel, user* user)
+{
+    struct user* u = NULL;
+    for (u = *(channel->operator_list); u != NULL; u=u->hh.next)
+    {
+        if (u == user)
+        {
+            return 1;
+        }
+    }
+    return -1;
 }
 
 
@@ -57,6 +99,20 @@ void channel_adduser(channel* channel, user* user)
 {
     HASH_ADD_INT(*(channel->user_list), client_socket, user);
     channel->num_users++;
+}
+
+
+void channel_addoperator(channel* channel, user* user)
+{
+    struct user* u = NULL;
+    for (u = *(channel->operator_list); u != NULL; u=u->hh.next)
+    {
+        if (u == user)
+        {
+            return;
+        }
+    }
+    HASH_ADD_INT(*(channel->operator_list), client_socket, user);
 }
 
 
@@ -75,4 +131,23 @@ void channel_deluser(channel* channel, user* user)
 }
 
 
-
+// 
+void channel_deop(channel* channel, user* user)
+{
+    struct user* u = NULL;
+    for (u = *(channel->operator_list); u != NULL; u=u->hh.next)
+    {
+        if (u == user)
+        {
+            if (*(channel->operator_list) == user)
+            {
+                *(channel->operator_list) = (*(channel->operator_list))->hh.next;
+            } 
+            else 
+            {
+                HASH_DEL(*(channel->operator_list), user);
+            }
+            return;
+        }
+    } 
+}

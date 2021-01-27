@@ -12,6 +12,7 @@
 #include "users.h"
 #include "server_info.h"
 
+#define MAX_BUFF_SIZE 513
 
 /*
  * match - Match current command with a possible command and execute

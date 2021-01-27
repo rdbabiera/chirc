@@ -30,6 +30,7 @@ user* user_init(int socket, struct sockaddr* sa, socklen_t salen)
     // User Statuses + Mutex
     pthread_mutex_init(&new_user->socket_mutex, NULL);
     new_user->registered = false;
+    new_user->irc_operator = false;
     return new_user;
 }
 

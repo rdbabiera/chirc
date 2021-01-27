@@ -55,7 +55,7 @@ typedef struct user {
 
     // Statuses
     bool registered;
-    bool operator;
+    bool irc_operator;
 } user;
 
 /***************** Functions *****************/

@@ -26,10 +26,10 @@ void match(char* command_str, user* user, server_ctx* ctx)
                 {"NICK", nick_fn}, 
                 {"USER", user_fn},
                 {"QUIT", quit_fn},
-                {"PING", ping_fn},
-                {"PONG", pong_fn},
                 {"PRIVMSG", privmsg_notice_fn},
                 {"NOTICE", privmsg_notice_fn},
+                {"PING", ping_fn},
+                {"PONG", pong_fn},
                 {"LUSERS", lusers_fn},
                 {"WHOIS", whois_fn}
                 };

@@ -15,6 +15,7 @@
 #include "parse_util.h"
 #include "message_util.h"
 #include "channels.h"
+#include "server_info.h"
 
 
 /**************** Functions for Tokenizing Messages ****************/
@@ -57,7 +58,7 @@ void free_tokens(char** tokens, int num_tokens)
 
 
 // Validate that the number of parameters is correct
-int validate_parameters(char* command, int target_params, user* user)
+int validate_parameters(char* command, int target_params, user* user, server_ctx* ctx)
 {
     int count = -1;
     char *saveptr, *token;
@@ -71,7 +72,7 @@ int validate_parameters(char* command, int target_params, user* user)
     }
     if (count < target_params)
     {
-        char* error = construct_message(ERR_NEEDMOREPARAMS, NULL, user, command, NULL);
+        char* error = construct_message(ERR_NEEDMOREPARAMS, ctx, user, NULL, true);
         send_message(error, user);
         return -1;
 
