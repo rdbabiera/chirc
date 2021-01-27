@@ -203,32 +203,5 @@ void mode_fn(char* command_str, user* user, server_ctx* ctx);
  */
 void oper_fn(char* command_str, user* user, server_ctx* ctx);
 
-/**************** Functions for Constructing a Message ****************/
-
-/*
- * construct_message - constructs messages to be sent back to clients based on
- *                     command inputted 
- * 
- * error: error to be evaluated
- * 
- * user: info of user that the message is for
- * 
- * ctx: server context
- * 
- * params: list of extra parameters as needed for the error
- * 
- * error: A boolean that tells whether the message is an error or something else
- * 
- * Returns: char*
- * 
- * Credit: After speaking with multiple people within Networks about how they were
- * handling errors, we decided it would be best to change our previous 2 extra
- * parameters, to a string array for extra parameters to make things cleaner. 
- * 
- */
-char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
-                        bool error);
-
-
 
 #endif /* CHIRC_UTIL_H_ */

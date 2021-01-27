@@ -16,6 +16,7 @@
 #include "message_util.h"
 #include "channels.h"
 #include "server_info.h"
+#include "construct_msg.h"
 
 
 /**************** Functions for Tokenizing Messages ****************/
@@ -35,10 +36,19 @@ char** tokenize_message(char* message, char* tokenizer, int num_tokens)
         {
             curr_token = strtok_r(temp_str, tokenizer, &saveptr);
             res[0] = strdup(curr_token);
-        } else
+        } 
+        else
         {
             curr_token = strtok_r(NULL, tokenizer, &saveptr);
-            res[i] = strdup(curr_token);
+            if (curr_token != NULL)
+            {
+                res[i] = strdup(curr_token);
+            }
+            else
+            {
+                res[i] = NULL;
+            }
+            
         }
     }
     free(temp_str);
@@ -72,10 +82,7 @@ int validate_parameters(char* command, int target_params, user* user, server_ctx
     }
     if (count < target_params)
     {
-        char* error = construct_message(ERR_NEEDMOREPARAMS, ctx, user, NULL, true);
-        send_message(error, user);
         return -1;
-
     }
     return 0;
 }

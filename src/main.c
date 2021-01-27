@@ -221,7 +221,8 @@ int main(int argc, char *argv[])
     server_ctx* server_ctx = (struct server_ctx*)malloc(sizeof(struct server_ctx));
     server_ctx->user_list = (user**)malloc(sizeof(user*));
     *server_ctx->user_list = NULL;
-    server_ctx->channel_list = NULL;
+    server_ctx->channel_list = (channel**)malloc(sizeof(channel*));
+    *server_ctx->channel_list = NULL;
     server_ctx->channel_count = 0;
     server_ctx->operator_password = passwd;
 

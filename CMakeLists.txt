@@ -17,7 +17,8 @@ add_executable(chirc
     src/message.c
     src/message_util.c
     src/parse_util.c
-    src/users.c)
+    src/users.c
+    src/construct_msg.c)
 
 target_link_libraries(chirc pthread)
 

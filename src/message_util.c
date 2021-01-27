@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -18,6 +19,7 @@
 #include "message_util.h"
 #include "parse_util.h"
 #include "message.h"
+#include "construct_msg.h"
 
 
 /**************** Functions for Handling Commands ****************/
@@ -30,16 +32,43 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
     struct user** user_list;
     char* error;
     
+    chilog(DEBUG, "BREAKPOINT 0");
+
     /* Order: command, nickname */
     char** res = tokenize_message(command_str, " ", 2);
     nickname = res[1];
 
-    chilog(INFO, "BREAKPOINT 1");
+    chilog(DEBUG, "|%s|", nickname);
+    chilog(DEBUG, "BREAKPOINT NICK");
 
+
+    /* If nickname is null, send out error message */
+    if (nickname == NULL)
+    {
+        if (user->registered == true) 
+        {
+            error = construct_message(ERR_NONICKNAMEGIVEN, ctx, user, NULL, true);
+            send_message(error, user);
+            free_tokens(res, 2);
+            free(error);
+            return;
+        } 
+        else
+        {
+            user->nick = "*";
+            error = construct_message(ERR_NONICKNAMEGIVEN, ctx, user, NULL, true);
+            send_message(error, user);
+            free_tokens(res, 2);
+            free(error);
+            user->nick = NULL;
+            return;
+        }
+    }
+    
     /* If nickname is already in user list, send out error message */
     for (u = *(ctx->user_list); u != NULL; u=u->hh.next)
     {
-        chilog(INFO, "BREAKPOINT 1.1");
+        chilog(DEBUG, "BREAKPOINT ASSIGNMENT");
         if ((u->registered) && (!strncmp(nickname, u->nick, MAX_BUFF_SIZE)))
         {
             if (user->nick == NULL)
@@ -65,23 +94,13 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
 
     chilog(DEBUG, "BREAKPOINT 2");
 
-    /* If nickname is null, send out error message */
-    if (nickname == NULL)
-    {
-        error = construct_message(ERR_NONICKNAMEGIVEN, ctx, user, NULL, true);
-        send_message(error, user);
-        free_tokens(res, 2);
-        free(error);
-        return;
-    }
-
     chilog(INFO, "Nickname: %s registered", res[1]);
 
     user->nick = strdup(res[1]);
     free_tokens(res, 2);
 
     /* Handle User Registration */
-    char *welcome, *your_host, *created, *my_info;
+    char *welcome, *your_host, *created, *my_info, *motd;
 
     if ((user->username != NULL) && (user->registered == false))
     {
@@ -90,6 +109,7 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
         your_host = construct_message(RPL_YOURHOST, ctx, user, NULL, false);
         created = construct_message(RPL_CREATED, ctx, user, NULL, false);
         my_info = construct_message(RPL_MYINFO, ctx, user, NULL, false);
+        motd = construct_message(ERR_NOMOTD, ctx, user, NULL, true);
 
         send_message(welcome, user);
         send_message(your_host, user);
@@ -101,7 +121,14 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
         free(created);
         free(my_info);
 
+        chilog(DEBUG, "Sent welcome messages\n");
+
         user->registered = true;
+
+        lusers_fn("LUSERS", user, ctx);
+
+        send_message(motd, user);
+        free(motd);
         
         return;
     }
@@ -160,13 +187,14 @@ void user_fn(char* command_str, user* user, server_ctx* ctx)
     free_tokens(res2, 4);
 
     /* Handle user registration */
-    char *welcome, *your_host, *created, *my_info;
+    char *welcome, *your_host, *created, *my_info, *motd;
     if ((user->nick != NULL) && (user->registered == false))
     {
         welcome = construct_message(RPL_WELCOME, ctx, user, NULL, false);
         your_host = construct_message(RPL_YOURHOST, ctx, user, NULL, false);
         created = construct_message(RPL_CREATED, ctx, user, NULL, false);
         my_info = construct_message(RPL_MYINFO, ctx, user, NULL, false);
+        motd = construct_message(ERR_NOMOTD, ctx, user, NULL, true);
 
         send_message(welcome, user);
         send_message(your_host, user);
@@ -178,7 +206,13 @@ void user_fn(char* command_str, user* user, server_ctx* ctx)
         free(created);
         free(my_info);
 
+        chilog(DEBUG, "Sent welcome messages\n");
+
         user->registered = true;
+
+        lusers_fn("LUSERS", user, ctx);
+        send_message(motd, user);
+        free(motd);
         
         return;
     }
@@ -311,11 +345,12 @@ void pong_fn(char* command_str, user* user, server_ctx* ctx)
 
 void lusers_fn(char* command_str, user* user, server_ctx* ctx)
 {
+    int i;
     int status;
-    int user_count, service_count, server_count, op_count;
-    int unknown_count, channel_count;
-    user_count = service_count = op_count = 0;
-    unknown_count = channel_count = 0;
+    int user_count, unknown_count, channel_count, op_count;
+    int service_count, server_count;
+    
+    user_count = service_count = op_count = channel_count = unknown_count = 0;
     server_count = 1;
 
     struct user** user_list = ctx->user_list;
@@ -334,17 +369,33 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx)
         }
     }
 
-    // This isnt done ^
+    struct channel** c_list = ctx->channel_list;
+    struct channel* c;
+    for (c = *c_list; c != NULL; c=c->hh.next)
+    {
+        channel_count++;
+    }
 
-    char* client, op, unknown, channels, me;
+    char *client, *op, *unknown, *channels, *me;
 
-    /*
-    client = construct_message(RPL_LUSERCLIENT, ctx, user, params, false);
-    op = construct_message(RPL_LUSEROP, ctx, user, params, false);
-    unknown = construct_message(RPL_LUSERUNKNOWN, ctx, user, params, false);
-    channels = construct_message(RPL_LUSERCHANNELS, ctx, user, params, false);
-    me = construct_message(RPL_LUSERME, ctx, user, params[], false);
-    
+    char** stats = (char**)malloc(sizeof(char*) * 6);
+    for (i=0; i<6; i++)
+    {
+        stats[i] = (char*)malloc(sizeof(char) * 12);
+    }
+
+    status = sprintf(stats[0], "%d", user_count);
+    status = sprintf(stats[1], "%d", unknown_count);
+    status = sprintf(stats[2], "%d", channel_count);
+    status = sprintf(stats[3], "%d", op_count);
+    status = sprintf(stats[4], "%d", service_count);
+    status = sprintf(stats[5], "%d", server_count);
+
+    client = construct_message(RPL_LUSERCLIENT, ctx, user, stats, false);
+    op = construct_message(RPL_LUSEROP, ctx, user, stats, false);
+    unknown = construct_message(RPL_LUSERUNKNOWN, ctx, user, stats, false);
+    channels = construct_message(RPL_LUSERCHANNELS, ctx, user, stats, false);
+    me = construct_message(RPL_LUSERME, ctx, user, stats, false);
 
     send_message(client, user);
     send_message(op, user);
@@ -352,12 +403,13 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx)
     send_message(channels, user);
     send_message(me, user);
 
+    free_tokens(stats, 6);
+
     free(client);
     free(op);
     free(unknown);
     free(channels);
     free(me); //please
-    */
 
     return;
     
@@ -666,176 +718,3 @@ void oper_fn(char* command_str, user* user, server_ctx* ctx)
 }
 
 
-
-/**************** Functions for Constructing a Message ****************/
-
-/* Construct message to be sent back to client depending on command */
-char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
-                        bool error)
-{
-    char* res = (char*)malloc(sizeof(char)*MAX_BUFF_SIZE);
-    int status;
-
-    /* Errors */
-    if (error == true) 
-    {
-
-        /* Nickname errors */
-        if (!strncmp(msg, ERR_NICKNAMEINUSE, ERROR_SIZE))
-        {
-            status = sprintf(res, ":%s %s %s :%s :Nickname already in use.\r\n",
-                            ctx->server_name, ERR_NICKNAMEINUSE,user->nick, params[1]);
-        }
-        else if (!strncmp(msg, ERR_NONICKNAMEGIVEN, ERROR_SIZE))
-        {
-            status = sprintf(res, "%s %s %s :No nickname given.\r\n", 
-                            ctx->server_name, ERR_NONICKNAMEGIVEN,user->nick);
-        }
-
-        /* Username errors */
-        else if (!strncmp(msg, ERR_ALREADYREGISTRED, ERROR_SIZE))
-        {
-            status = sprintf(res, ":%s %s %s :Unauthorized command (already \
-                            registered)\r\n", ctx->server_name, ERR_ALREADYREGISTRED,
-                           user->nick);
-        }
-        
-        /* Privmsg and notice errors */
-        else if (!strncmp(msg, ERR_NOTEXTTOSEND, ERROR_SIZE))
-        {
-            status = sprintf(res, ":%s %s %s :No text to send. \r\n", 
-                            ctx->server_name, ERR_NOTEXTTOSEND, user->nick);
-        }
-        else if (!strncmp(msg, ERR_NORECIPIENT, ERROR_SIZE))
-        {
-            status = sprintf(res, ":%s %s %s :No recipient given %s \r\n", 
-                            ctx->server_name, ERR_NORECIPIENT, user->nick, 
-                            params[0]);
-        }
-        else if (!strncmp(msg, ERR_NOSUCHNICK, ERROR_SIZE))
-        {
-            status = sprintf(res, ":%s %s %s : %s :No such nick/channel\r\n",
-                            ctx->server_name, ERR_NOSUCHNICK, user->nick, params[1]);
-        }
-
-        /* General errors */
-        else if (!strncmp(msg, ERR_NEEDMOREPARAMS, ERROR_SIZE))
-        {
-            status = sprintf(res, ":%s %s %s : %s :Not enough parameters.\r\n",
-                            ctx->server_name, ERR_NEEDMOREPARAMS,user->nick, params[0]);
-        }
-    }
-
-    /* General messages */
-    else
-    {
-        /* Welcome messages*/
-        if (!strncmp(msg, RPL_WELCOME, ERROR_SIZE))
-        {
-            status = sprintf(res, ":%s %s %s :Welcome to the Internet Relay Network \
-                            %s!%s@%s\r\n", ctx->server_name, RPL_WELCOME, 
-                           user->nick,user->nick, user->username, user->client_host);
-        }
-        else if (!strncmp(msg, RPL_YOURHOST, ERROR_SIZE))
-        {
-            status = sprintf(res, ":%s %s %s :Your host is %s, running version \
-                            420.69\r\n", ctx->server_name, RPL_YOURHOST,user->nick, 
-                            ctx->server_name);
-        }
-        else if (!strncmp(msg, RPL_CREATED, ERROR_SIZE))
-        {
-            time_t t = time(NULL);
-            struct tm tm = *localtime(&t);
-            status = sprintf(res, ":%s %s %s :This server was created \
-                            %d-%02d-%02d at %02d:%02d:%02d\r\n",
-                            ctx->server_name, RPL_CREATED,user->nick, 
-                            tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, 
-                            tm.tm_hour, tm.tm_min, tm.tm_sec);
-        }
-        else if (!strncmp(msg, RPL_MYINFO, ERROR_SIZE))
-        {
-            status = sprintf(res, ":%s %s %s :%s 420.60 ao mtov\r\n", 
-                            ctx->server_name, RPL_MYINFO,user->nick, 
-                            ctx->server_name);
-        }
-
-        /* Quit messages */
-        else if (!strncmp(msg, "QUIT", 4))
-        {
-            status = sprintf(res, ":%s QUIT %s ERROR :Closing Link: %s %s\r\n", 
-                            ctx->server_name,user->nick, user->client_host, 
-                            params[1]);
-        }
-
-        /* Private message and notice messages */
-        else if (!strncmp(msg, "PRIVMSG", 7))
-        {
-            status = sprintf(res, ":%s!%s@%s PRIVMSG %s : %s\r\n", 
-                            user->nick, user->username, user->client_host, 
-                            params[1], params[2]);
-        }
-
-        /* Ping and pong messages */
-        else if (!strncmp(msg, "PONG", 4))
-        {
-            status = sprintf(res, ":%s PONG %s :%s\r\n", 
-                            ctx->server_name, user->nick, ctx->server_name);
-        }
-
-        
-        /* LUSERS messages */
-        /*
-        else if (!strncmp(msg, RPL_LUSERCLIENT, ERROR_SIZE))
-        {
-            status = sprintf(res, "%s %s %s :There are %s users and %s services \
-                            on 1 server.", ctx->server_name, RPL_LUSERCLIENT, 
-                            user->nick, params[]);
-        }
-        else if (!strncmp(msg, RPL_LUSEROP, ERROR_SIZE))
-        {
-            status = sprintf(res, "%s %s %s %s :Operator(s) online\r\n", 
-                            ctx->server_name, RPL_LUSEROP, user->nick, params[]);
-     
-        }
-        else if (!strncmp(msg, RPL_LUSERUNKNOWN, ERROR_SIZE))
-        {
-            status = sprintf(res, "%s %s %s %s :unknown connections(s)\r\n",
-                            ctx->server_name, RPL_LUSERUNKNOWN, user->nick, 
-                            params[]);
-        }
-        else if (!strncmp(msg, RPL_LUSERCHANNELS, ERROR_SIZE))
-        {
-            status = sprintf(res, "%s %s %s %s :channels formed\r\n", 
-                            ctx->server_name, RPL_LUSERUNKNOWN, user->nick,
-                            params[]);
-        }
-        else if (!strncmp(msg, RPL_LUSERME, ERROR_SIZE))
-        {
-            status = sprintf(res, "%s %s %s :I have %s clients and %s \
-                            servers\r\n", ctx->server_name, RPL_LUSERME,
-                            user->nick, params[], params[])
-        }
-        */
-
-        /* WHOIS messages */
-        else if (!strncmp(msg, RPL_WHOISUSER, ERROR_SIZE))
-        {
-            status = sprintf(res, "%s %s %s %s %s %s * :%s\r\n", ctx->server_name,
-                            RPL_WHOISUSER, user->nick, user->nick, user->username,
-                            user->client_host, user->full_name);
-        }
-        else if (!strncmp(msg, RPL_WHOISSERVER, ERROR_SIZE))
-        {
-            status = sprintf(res, "%s %s %s %s %s :%s\r\n", ctx->server_name, 
-                            RPL_WHOISSERVER, user->nick, params[1], ctx->server_name,
-                            "dog");
-        }
-        else if (!strncmp(msg, RPL_ENDOFWHOIS, ERROR_SIZE))
-        {
-            status = sprintf(res, "%s %s %s %s :End of WHOIS list\r\n", 
-                            ctx->server_name, RPL_ENDOFWHOIS, user->nick, params[1]);
-        }
-    }
-
-    return res;
-}
