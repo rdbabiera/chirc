@@ -16,7 +16,7 @@
 #include "users.h"
 #include "server_info.h"
 #include "log.h"
-#include "message_util.h"
+#include "util.h"
 #include "parse_util.h"
 #include "message.h"
 #include "construct_msg.h"
@@ -258,67 +258,92 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
     char* dst_nickname;
     struct user* dst_user;
     char *msg, *command, *error, *complete_msg;
+    bool is_notice = false;
 
     /* Order: command line, message */
     char** res1 = tokenize_message(command_str, ":", 2);
+    msg = res1[1];
+
     /* Order: command, dst user */
     char** res2 = tokenize_message(res1[0], " ", 3);
 
     dst_nickname = res2[1];
-    msg = res1[1];
     command = res2[0];
     
-    /* Add in message to the parameter array */
-    res2[2] = res1[1];
-
-    /* Find desired user */
-    dst_user = user_lookup(ctx->user_list, 0, dst_nickname, 0);
-
+    if (!strncmp(command, "NOTICE", 6))
+    {
+        is_notice = true;
+    }
+    
+    
+    if (validate_parameters(command_str, 1, user, ctx) == -1)
+    {
+        if (!is_notice)
+        {
+            error = construct_message(ERR_NORECIPIENT, ctx, user, res2, true);
+            send_message(error, user);
+            free_tokens(res1, 2);
+            free(error);
+        }  
+        return;
+    }
     /* If message is empty, error */
     if (msg == NULL) 
     {
-        error = construct_message(ERR_NOTEXTTOSEND, ctx, user, NULL, true);
-        send_message(error, user);
-        free_tokens(res1, 2);
-        free_tokens(res2, 3);
-        free(error);
+        if (!is_notice)
+        {
+            error = construct_message(ERR_NOTEXTTOSEND, ctx, user, NULL, true);
+            send_message(error, user);
+            free_tokens(res1, 2);
+            free(error);
+        }
         return;
     }
+
+    
+    /* Add in message to the parameter array */
+    res2[2] = strdup(res1[1]);  
 
     /* If no target is provided, error */
     if (dst_nickname == NULL)
     {
-        error = construct_message(ERR_NORECIPIENT, ctx, user, res2, true);
-        send_message(error, user);
-        free_tokens(res1, 2);
-        free_tokens(res2, 3);
-        free(error);
+        if (!is_notice)
+        {
+            error = construct_message(ERR_NORECIPIENT, ctx, user, res2, true);
+            send_message(error, user);
+            free_tokens(res1, 2);
+            free_tokens(res2, 3);
+            free(error);
+        }
         return;
     }
+
+    /* Find desired user */
+    dst_user = user_lookup(ctx->user_list, 0, dst_nickname, 0);
     
     /* If no user is found with given nickname, error */
     if (dst_user == NULL)
     {
-        error = construct_message(ERR_NOSUCHNICK, ctx, user, res2, true);
-        send_message(error, user);
-        free_tokens(res1, 2);
-        free_tokens(res2, 3);
-        free(error);
+        if (!is_notice)
+        {
+            error = construct_message(ERR_NOSUCHNICK, ctx, user, res2, true);
+            send_message(error, user);
+            free_tokens(res1, 2);
+            free_tokens(res2, 3);
+            free(error);
+        }
         return;
     }
 
 
-    // if (command == "NOTICE") 
-    // {
-    //     // no automatic reply allowed
-    // } 
-    // else 
-    // {
-    complete_msg = construct_message("PRIVMSG", ctx, user, res2, false);
-    send_message(msg, dst_user);
+    complete_msg = construct_message(command, ctx, user, res2, false);
+    send_message(complete_msg, dst_user);
+
+    chilog(INFO, "%s messaged %s : %s\n", user->nick, dst_user->nick, msg);
+
     free_tokens(res1, 2);
     free_tokens(res2, 3);
-    free(error);
+    free(complete_msg);
     return;
     //}
 
@@ -348,21 +373,29 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx)
     int i;
     int status;
     int user_count, unknown_count, channel_count, op_count;
-    int service_count, server_count;
+    int service_count, server_count, client_count;
     
     user_count = service_count = op_count = channel_count = unknown_count = 0;
+    client_count = 0;
     server_count = 1;
 
     struct user** user_list = ctx->user_list;
     struct user* u;
     for (u = *user_list; u != NULL; u=u->hh.next)
     {
+        client_count++;
         user_count++;
         if ((u->nick == NULL) && (u->username == NULL))
         {
             unknown_count++;
             user_count--;
+            client_count--;
         }
+        else if (!u->registered)
+        {
+            user_count--;
+        }
+
         if (u->irc_operator)
         {
             op_count++;
@@ -378,8 +411,8 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx)
 
     char *client, *op, *unknown, *channels, *me;
 
-    char** stats = (char**)malloc(sizeof(char*) * 6);
-    for (i=0; i<6; i++)
+    char** stats = (char**)malloc(sizeof(char*) * 7);
+    for (i=0; i<7; i++)
     {
         stats[i] = (char*)malloc(sizeof(char) * 12);
     }
@@ -390,6 +423,7 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx)
     status = sprintf(stats[3], "%d", op_count);
     status = sprintf(stats[4], "%d", service_count);
     status = sprintf(stats[5], "%d", server_count);
+    status = sprintf(stats[6], "%d", client_count);
 
     client = construct_message(RPL_LUSERCLIENT, ctx, user, stats, false);
     op = construct_message(RPL_LUSEROP, ctx, user, stats, false);
@@ -403,7 +437,7 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx)
     send_message(channels, user);
     send_message(me, user);
 
-    free_tokens(stats, 6);
+    free_tokens(stats, 7);
 
     free(client);
     free(op);
@@ -439,16 +473,25 @@ void whois_fn(char* command_str, user* user, server_ctx* ctx)
         free(error);
         return;
     }
+    char** params = (char**)malloc(sizeof(char*)*4);
+    params[0] = strdup(target->nick);
+    params[1] = strdup(target->username);
+    params[2] = strdup(target->client_host);
+    params[3] = strdup(target->full_name);
     
     char *whois_user, *server, *end;
     
-    whois_user = construct_message(RPL_WHOISUSER, ctx, user, res, false);
+    whois_user = construct_message(RPL_WHOISUSER, ctx, user, params, false);
     server = construct_message(RPL_WHOISSERVER, ctx, user, res, false);
     end = construct_message(RPL_ENDOFWHOIS, ctx, user, res, false);
+    
     send_message(whois_user, user);
     send_message(server, user);
     send_message(end, user);
+
     free_tokens(res, 2);
+    free_tokens(params, 4);
+    
     free(whois_user);
     free(server);
     free(end);

@@ -13,7 +13,7 @@
 #include "users.h"
 #include "log.h"
 #include "parse_util.h"
-#include "message_util.h"
+#include "util.h"
 #include "channels.h"
 #include "server_info.h"
 #include "construct_msg.h"

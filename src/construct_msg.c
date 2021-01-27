@@ -56,18 +56,18 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
         /* Privmsg and notice errors */
         else if (!strncmp(msg, ERR_NOTEXTTOSEND, ERROR_SIZE))
         {
-            status = sprintf(res, ":%s %s %s :No text to send. \r\n", 
+            status = sprintf(res, ":%s %s %s :No text to send\r\n", 
                             ctx->server_name, ERR_NOTEXTTOSEND, user->nick);
         }
         else if (!strncmp(msg, ERR_NORECIPIENT, ERROR_SIZE))
         {
-            status = sprintf(res, ":%s %s %s :No recipient given %s \r\n", 
+            status = sprintf(res, ":%s %s %s :No recipient given (%s)\r\n", 
                             ctx->server_name, ERR_NORECIPIENT, user->nick, 
                             params[0]);
         }
         else if (!strncmp(msg, ERR_NOSUCHNICK, ERROR_SIZE))
         {
-            status = sprintf(res, ":%s %s %s : %s :No such nick/channel\r\n",
+            status = sprintf(res, ":%s %s %s %s :No such nick/channel\r\n",
                             ctx->server_name, ERR_NOSUCHNICK, user->nick, params[1]);
         }
 
@@ -135,22 +135,23 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
         else if (!strncmp(msg, "QUIT", 4))
         {
             status = sprintf(res, "ERROR :Closing Link: %s (%s)\r\n", 
+         
                             user->client_host, params[1]);
         }
 
-        /* Private message and notice messages */
-        else if (!strncmp(msg, "PRIVMSG", 7))
+        /* Privmsg and notice messages */
+        else if ((!strncmp(msg, "PRIVMSG", 7)) || (!strncmp(msg, "NOTICE", 6)))
         {
-            status = sprintf(res, ":%s!%s@%s PRIVMSG %s : %s\r\n", 
-                            user->nick, user->username, user->client_host, 
+            status = sprintf(res, ":%s!%s@%s %s %s :%s\r\n", 
+                            user->nick, user->username, user->client_host, msg, 
                             params[1], params[2]);
         }
 
         /* Ping and pong messages */
         else if (!strncmp(msg, "PONG", 4))
         {
-            status = sprintf(res, ":%s PONG %s :%s\r\n", 
-                            ctx->server_name, user->nick, ctx->server_name);
+            status = sprintf(res, ":%s PONG %s\r\n", 
+                            ctx->server_name, ctx->server_name);
         }
 
         
@@ -158,7 +159,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
         else if (!strncmp(msg, RPL_LUSERCLIENT, ERROR_SIZE))
         {
             status = sprintf(res, ":%s %s %s :There are %s users and %s services "
-                            "on 1 server.\r\n", ctx->server_name, RPL_LUSERCLIENT, 
+                            "on 1 servers\r\n", ctx->server_name, RPL_LUSERCLIENT, 
                             user->nick, params[0], params[4]);
         }
         else if (!strncmp(msg, RPL_LUSEROP, ERROR_SIZE))
@@ -183,25 +184,25 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
         {
             status = sprintf(res, ":%s %s %s :I have %s clients and %s "
                             "servers\r\n", ctx->server_name, RPL_LUSERME,
-                            user->nick, params[0], params[5]);
+                            user->nick, params[6], params[5]);
         }
 
         /* WHOIS messages */
         else if (!strncmp(msg, RPL_WHOISUSER, ERROR_SIZE))
         {
-            status = sprintf(res, "%s %s %s %s %s %s * :%s\r\n", ctx->server_name,
-                            RPL_WHOISUSER, user->nick, user->nick, user->username,
-                            user->client_host, user->full_name);
+            status = sprintf(res, ":%s %s %s %s %s %s * :%s\r\n", ctx->server_name,
+                           RPL_WHOISUSER, user->nick, params[0], params[1],
+                            params[2], params[3]);
         }
         else if (!strncmp(msg, RPL_WHOISSERVER, ERROR_SIZE))
         {
-            status = sprintf(res, "%s %s %s %s %s :%s\r\n", ctx->server_name, 
+            status = sprintf(res, ":%s %s %s %s %s :%s\r\n", ctx->server_name, 
                             RPL_WHOISSERVER, user->nick, params[1], ctx->server_name,
                             "dog");
         }
         else if (!strncmp(msg, RPL_ENDOFWHOIS, ERROR_SIZE))
         {
-            status = sprintf(res, "%s %s %s %s :End of WHOIS list\r\n", 
+            status = sprintf(res, ":%s %s %s %s :End of WHOIS list\r\n", 
                             ctx->server_name, RPL_ENDOFWHOIS, user->nick, params[1]);
         }
     }

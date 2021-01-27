@@ -7,7 +7,7 @@
 
 #include "log.h"
 #include "message.h"
-#include "message_util.h"
+#include "util.h"
 #include "parse_util.h"
 #include "reply.h"
 #include "users.h"

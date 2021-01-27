@@ -14,7 +14,7 @@
 #include "channels.h"
 #include "log.h"
 #include "message.h"
-#include "message_util.h"
+#include "util.h"
 
 #include "uthash.h"
 #include "utlist.h"

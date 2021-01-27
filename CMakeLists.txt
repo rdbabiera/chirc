@@ -15,7 +15,7 @@ add_executable(chirc
     src/log.c
     src/main.c
     src/message.c
-    src/message_util.c
+    src/util.c
     src/parse_util.c
     src/users.c
     src/construct_msg.c)
