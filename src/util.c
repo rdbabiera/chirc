@@ -545,6 +545,7 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx)
     
 }
 
+
 void whois_fn(char* command_str, user* user, server_ctx* ctx)
 {
     // REPLIES: RPL_WHOISUSER, RPL_WHOISSERVER, RPL_ENDOFWHOIS
@@ -569,21 +570,48 @@ void whois_fn(char* command_str, user* user, server_ctx* ctx)
         free(error);
         return;
     }
-    char** params = (char**)malloc(sizeof(char*)*4);
+    char** params = (char**)malloc(sizeof(char*)*6);
     params[0] = strdup(target->nick);
     params[1] = strdup(target->username);
     params[2] = strdup(target->client_host);
     params[3] = strdup(target->full_name);
+    params[4] = "";//channel list
     
-    char *whois_user, *server, *end;
+    char *whois_user, *server, *end, *whois_op, *whois_ch;
     
     whois_user = construct_message(RPL_WHOISUSER, ctx, user, params, false);
     server = construct_message(RPL_WHOISSERVER, ctx, user, res, false);
     end = construct_message(RPL_ENDOFWHOIS, ctx, user, res, false);
+     
+    if (target->irc_operator == true) 
+    {
+        whois_op = construct_message(RPL_WHOISOPERATOR, ctx, user, params, false);
+        whois_ch = construct_message(RPL_WHOISCHANNELS, ctx, user, params, false);
+
+        send_message(whois_user, user);
+        send_message(whois_ch, user);
+        send_message(server, user);
+        send_message(whois_op, user);
+        send_message(end, user);
+
+        free_tokens(res, 2);
+        free_tokens(params, 4);
+        free(whois_user);
+        free(server);
+        free(end);
+        free(whois_op);
+        free(whois_ch);
+        return;
+    }
+    else
+    {
+        send_message(whois_user, user);
+        send_message(server, user);
+        send_message(end, user);
+    }
     
-    send_message(whois_user, user);
-    send_message(server, user);
-    send_message(end, user);
+
+
 
     free_tokens(res, 2);
     free_tokens(params, 4);
@@ -694,19 +722,27 @@ void part_fn(char* command_str, user* user, server_ctx* ctx)
 
     bool part_msg_present = true;
     char* message = strdup(user->nick);
+    char** res0 = tokenize_message(command_str, ":", 2);
+    /* Order: COMMAND, CHANNEL, MESSAGE */
+    char** res1 = tokenize_message(command_str, " ", 3);
 
     if (!validate_parameters(command_str, 2))
     {
         part_msg_present = false;
         if (!validate_parameters(command_str, 1))
         {
-            // ERR_NEEDMOREPARAMS
+            char* error = construct_message(ERR_NEEDMOREPARAMS, ctx, user,
+                                            res1, true);
+            send_message(error, user);
+
+            free(message);
+            free_tokens(res0, 2);
+            free_tokens(res1, 3);
+            free(error);
+            return;
         }
     }
 
-    char** res0 = tokenize_message(command_str, ":", 2);
-    /* Order: COMMAND, CHANNEL, MESSAGE */
-    char** res1 = tokenize_message(command_str, " ", 3);
     char* channel_name = res1[1];
     if (part_msg_present)
     {
@@ -716,15 +752,31 @@ void part_fn(char* command_str, user* user, server_ctx* ctx)
     }
     res1[2] = message;
 
+    /* Channel error checks */
     channel* c = channel_lookup(channel_name, ctx->channel_list);
     if (c == NULL)
     {
-        // ERR_NOSUCHCHANNEL
+        char* error = construct_message(ERR_NOSUCHCHANNEL, ctx, user, res1, true);
+        send_message(error, user);
+
+        free_tokens(res0, 2);
+        free_tokens(res1, 3);
+        free(message);
+        free(error);
+        return;
     }
     if (channel_verifyuser(c, user) == -1)
     {
-        // ERR_NOTONCHANNEL
+        char* error = construct_message(ERR_NOTONCHANNEL, ctx, user, res1, true);
+        send_message(error, user);
+        
+        free_tokens(res0, 2);
+        free_tokens(res1, 3);
+        free(message);
+        free(error);
+        return;
     }
+
     channel_deluser(c, user);
     if (c->num_users == 0)
     {
@@ -735,12 +787,15 @@ void part_fn(char* command_str, user* user, server_ctx* ctx)
         // Message: "<prefix for leaving user> PART <channel> :msg"
         // can be declared outside
         // message is res1[1]
-        char* parting_message; //= construct_message(parameters);
+        // need list of channels
+        char* parting_message = construct_message("PART", ctx, user, res1, false);
 
         for (c=*(ctx->channel_list); c != NULL; c=c->hh.next)
         {   
             // send_message(parting_message, c); <- wrong        
             // send each user an f in chat for their lad
+            // F - Lucy
+            send_message_tochannel(parting_message, c, user);
         }
         free(parting_message);
     }
@@ -748,6 +803,7 @@ void part_fn(char* command_str, user* user, server_ctx* ctx)
     free_tokens(res1, 3);
 
 }
+
 
 void list_fn(char* command_str, user* user, server_ctx* ctx)
 {
@@ -768,6 +824,10 @@ void list_fn(char* command_str, user* user, server_ctx* ctx)
             // RPL_LIST
             //msg format: :<servername> 322 <nick> <channel> <channel->num_users> :<topic>
             // we dont support topic, so leave it blank.
+            char* message = construct_message(RPL_LIST, ctx, user, res, false);
+            free_tokens(res, 2);
+            free(message);
+            return;
         }
     }
     else
@@ -779,11 +839,20 @@ void list_fn(char* command_str, user* user, server_ctx* ctx)
         }
         // RPL_LIST
         // :<servername> 322 <nick> <channel> <channel->num_users> :<topic>
+        char* message = construct_message(RPL_LIST, ctx, user, res, false);
+        free_tokens(res, 2);
+        free(message);
+        return;
     }
     // RPL_LISTEND
     // :<servername> 323 <nick> :End of LIST
+    char* error = construct_message(RPL_LISTEND, ctx, user, res, false);
+    free_tokens(res, 2);
+    free(error);
+    return;
 
 }
+
 
 void mode_fn(char* command_str, user* user, server_ctx* ctx)
 {
@@ -792,29 +861,42 @@ void mode_fn(char* command_str, user* user, server_ctx* ctx)
     int mode = 0;
     struct user* temp;
 
-    // ERRORS: ERR_NOSUCHCHANNEL, ERR_CHANOPRIVSNEEDED,
-    // ERR_UNKNOWNMODE, ERR_USERNOTINCHANNEL
-    if (!validate_parameters(command_str, 3))
-    {
-        //ERR_NOSUCHCHANNEL   
-        return;  
-    }
     /* Order: COMMAND, CHANNEL, MODE, NICK */
     char** res1 = tokenize_message(command_str, " ", 4);
     channel* c = channel_lookup(res1[1], ctx->channel_list);
+
+    /* ERRORS: ERR_NOSUCHCHANNEL, ERR_CHANOPRIVSNEEDED,
+     * ERR_UNKNOWNMODE, ERR_USERNOTINCHANNEL
+     */
+
+    /* Error checks */
+    if (!validate_parameters(command_str, 3))
+    {
+        char* error = construct_message(ERR_NOSUCHCHANNEL, ctx, user, res1, true);
+        send_message(error, user);
+        free_tokens(res1, 4);
+        free(error);
+        return;  
+    }
     if (c == NULL)
     {
-        // ERR_NOSUCHCHANNEL
+        char* error = construct_message(ERR_NOSUCHCHANNEL, ctx, user, res1, true);
+        send_message(error, user);
         free_tokens(res1, 4);
+        free(error);
         return;
     }
+
     struct user* u = user_lookup(ctx->user_list, 0, res1[3], 0);
     if ((u == NULL) || (channel_verifyuser(c, u) == -1))
     {
-        // ERR_USERNOTINCHANNEL
+        char* error = construct_message(ERR_USERNOTINCHANNEL, ctx, user, res1, true);
+        send_message(error, user);
         free_tokens(res1, 4);
+        free(error);
         return;
     }
+
     if (channel_verifyoperator(c, user) == 1)
     {
         ischannelop = true;
@@ -830,8 +912,10 @@ void mode_fn(char* command_str, user* user, server_ctx* ctx)
     }
     else
     {
-        // ERR_UNKNOWNMODE
+        char* error = construct_message(ERR_UNKNOWNMODE, ctx, user, res1, true);
+        send_message(error, user);
         free_tokens(res1, 4);
+        free(error);
         return;
     }
     
@@ -852,16 +936,20 @@ void mode_fn(char* command_str, user* user, server_ctx* ctx)
         // send_message
         for(temp = *c->user_list; temp != NULL; temp=temp->hh.next)
         {
-            // send_message
+            send_message(message, temp);
         }
         /// free message
         free(message);
         free_tokens(res1, 4);
+        return;
     }
     else
     {
         // ERR_CHANOPRIVSNEEDED 
+        char* error = construct_message(ERR_CHANOPRIVSNEEDED, ctx, user, res1, true);
+        send_message(error, user);
         free_tokens(res1, 4);
+        free(error);
         return;
     }
     free_tokens(res1, 4);
@@ -871,15 +959,21 @@ void mode_fn(char* command_str, user* user, server_ctx* ctx)
 void oper_fn(char* command_str, user* user, server_ctx* ctx)
 {
     
-    if (!validate_parameters(command_str, 2))
-    {
-        // ERR_NEEDMOREPARAMS              
-    }
-
     /* Order: COMMAND, USER, PASSWORD */
     char** res1 = tokenize_message(command_str, " ",3);
     char* password = res1[2];
     bool correct_pass = false;
+
+    if (!validate_parameters(command_str, 2))
+    {
+        // ERR_NEEDMOREPARAMS         
+        char* error = construct_message(ERR_NEEDMOREPARAMS, ctx, user, res1, true); 
+        send_message(error, user);
+        free_tokens(res1, 2);
+        free(error);
+        return;    
+    }
+
     if (!strcmp(password, ctx->operator_password))
     {
         correct_pass = true;
@@ -893,11 +987,20 @@ void oper_fn(char* command_str, user* user, server_ctx* ctx)
 
         // RPL_YOUREOPER
         // ":<servername> 381 <nick> :You are now an IRC operator"
-
+        char* msg = construct_message(RPL_YOUREOPER, ctx, user, res1, false);
+        send_message(msg, user);
+        free_tokens(res1, 3);
+        free(msg);
+        return;
     }
     else
     {
         // ERR_PASSWDMISMATCH
+        char* error = construct_message(ERR_PASSWDMISMATCH, ctx, user, NULL, true);
+        send_message(error, user);
+        free_tokens(res1, 3);
+        free(error);
+        return;
         // ":<servername> 464 <nick> :Password incorrect"
     }
 
