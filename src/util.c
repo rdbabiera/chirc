@@ -20,6 +20,7 @@
 #include "parse_util.h"
 #include "message.h"
 #include "construct_msg.h"
+#include "channels.h"
 
 
 /**************** Functions for Handling Commands ****************/
@@ -37,6 +38,10 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
     /* Order: command, nickname */
     char** res = tokenize_message(command_str, " ", 2);
     nickname = res[1];
+    if (user->nick != NULL)
+    {
+        res[0] = strdup(user->nick);
+    }
 
     chilog(DEBUG, "|%s|", nickname);
     chilog(DEBUG, "BREAKPOINT NICK");
@@ -97,7 +102,8 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
     chilog(INFO, "Nickname: %s registered", res[1]);
 
     user->nick = strdup(res[1]);
-    free_tokens(res, 2);
+
+    
 
     /* Handle User Registration */
     char *welcome, *your_host, *created, *my_info, *motd;
@@ -121,6 +127,8 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
         free(created);
         free(my_info);
 
+        free_tokens(res, 2);
+
         chilog(DEBUG, "Sent welcome messages\n");
 
         user->registered = true;
@@ -132,8 +140,14 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
         
         return;
     }
-    else
+    else if (user->registered == true)
     {
+        chilog(DEBUG, "nick to channel");
+        char *message = construct_message("NEW_NICK", ctx, user, res, false);
+        send_message(message, user);
+        send_message_alluserchannels(message, ctx->channel_list, user);
+        free(message);
+        free_tokens(res, 2);
         return;
     }
 
@@ -167,7 +181,7 @@ void user_fn(char* command_str, user* user, server_ctx* ctx)
         return;
     }
 
-    if (validate_parameters(command_str, 4, user, ctx) == -1)
+    if (!validate_parameters(command_str, 4))
     {
         error = construct_message(ERR_NEEDMOREPARAMS, ctx, user, res2, true);
         send_message(error, user);
@@ -233,17 +247,29 @@ void quit_fn(char* command_str, user* user, server_ctx* ctx)
     char** res = tokenize_message(command_str, ":", 2);
 
     /* Assign quit parameter if there is one */
-    msg_param = res[1];
+    char** res1 = (char**)malloc(sizeof(char*)*2);
 
-    if (msg_param == NULL)
+    if(res[1] == NULL)
     {
-        res[1] = "Client Quit";
+        res1[0] = strdup("Client Quit");
     }
-
+    else
+    {
+        res1[0] = strdup(res[1]);
+    }
+    
     /* Send message that user is quitting */
-    char* new_msg = construct_message("QUIT", ctx, user, res, false);
+    char* new_msg = construct_message("QUIT", ctx, user, res1, false);
+    char* ch_msg = construct_message("Q_CHANNEL", ctx, user, res1, false);
+    
     send_message(new_msg, user);
+    send_message_alluserchannels(ch_msg, ctx->channel_list, user);
     free(new_msg);
+    free(ch_msg);
+    free_tokens(res, 2);
+    free_tokens(res1,1);
+
+
 
     /* Remove user from server ctx */
     user_delete(ctx->user_list, user);
@@ -255,6 +281,7 @@ void quit_fn(char* command_str, user* user, server_ctx* ctx)
 /* Send a private message */
 void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
 {
+    chilog(INFO, "PRIVMSG B1\n");
     char* dst_nickname;
     struct user* dst_user;
     char *msg, *command, *error, *complete_msg;
@@ -266,86 +293,153 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
 
     /* Order: command, dst user */
     char** res2 = tokenize_message(res1[0], " ", 3);
+    chilog(INFO, "PRIVMSG B2\n");
 
     dst_nickname = res2[1];
     command = res2[0];
-    
+
+    /* Order: command, dst user, me */
+    char** params = (char**)malloc(sizeof(char*) * 3);
+    params[0] = strdup(res2[0]);
+    params[1] = strdup(res2[1]);
+    params[2] = strdup(res1[1]);
+
+    chilog(INFO, "PRIVMSG B2.2\n");
+
+    /*Check if NOTICE or PRIVMSG*/
     if (!strncmp(command, "NOTICE", 6))
     {
         is_notice = true;
     }
+        
     
-    
-    if (validate_parameters(command_str, 1, user, ctx) == -1)
+    if (res2[1][0] == '#')
     {
-        if (!is_notice)
-        {
-            error = construct_message(ERR_NORECIPIENT, ctx, user, res2, true);
-            send_message(error, user);
-            free_tokens(res1, 2);
-            free(error);
-        }  
-        return;
-    }
-    /* If message is empty, error */
-    if (msg == NULL) 
-    {
-        if (!is_notice)
-        {
-            error = construct_message(ERR_NOTEXTTOSEND, ctx, user, NULL, true);
-            send_message(error, user);
-            free_tokens(res1, 2);
-            free(error);
-        }
-        return;
-    }
+        chilog(INFO, "PRIVMSG B2.3\n");
+        /*Channel name not found*/
+        channel* c;
+        c = channel_lookup(dst_nickname, ctx->channel_list);
+        chilog(INFO, "PRIVMSG B3\n");
 
-    
-    /* Add in message to the parameter array */
-    res2[2] = strdup(res1[1]);  
-
-    /* If no target is provided, error */
-    if (dst_nickname == NULL)
-    {
-        if (!is_notice)
+        if (c == NULL)
         {
-            error = construct_message(ERR_NORECIPIENT, ctx, user, res2, true);
+            error = construct_message(ERR_NOSUCHNICK, ctx, user, params, true);
             send_message(error, user);
             free_tokens(res1, 2);
             free_tokens(res2, 3);
+            free_tokens(params, 3);
             free(error);
+            return;
         }
-        return;
-    }
 
-    /* Find desired user */
-    dst_user = user_lookup(ctx->user_list, 0, dst_nickname, 0);
-    
-    /* If no user is found with given nickname, error */
-    if (dst_user == NULL)
-    {
-        if (!is_notice)
+        bool on_channel;
+        on_channel = channel_verifyuser(c, user);
+
+        /*Have not joined channel*/
+        if (!on_channel)
         {
-            error = construct_message(ERR_NOSUCHNICK, ctx, user, res2, true);
-            send_message(error, user);
-            free_tokens(res1, 2);
-            free_tokens(res2, 3);
-            free(error);
+            if(!is_notice)
+            {
+                error = construct_message(ERR_CANNOTSENDTOCHAN, ctx, user, params, true);
+                send_message(error, user);
+                free_tokens(res1, 2);
+                free_tokens(res2, 3);
+                free_tokens(params, 3);
+                free(error);
+                return;
+            }
+            return;
         }
+        chilog(INFO, "PRIVMSG B4\n");
+
+        complete_msg = construct_message(command, ctx, user, params, false);
+        chilog(INFO, "PRIVMSG B5\n");
+        send_message_tochannel(complete_msg, c, user);
+        chilog(INFO, "PRIVMSG B6\n");
+        free(complete_msg);
+        free_tokens(res1, 2);
+        free_tokens(res2, 3);
+        free_tokens(params, 3);
+        chilog(INFO, "PRIVMSG B7\n");
         return;
     }
+    else
+    {
+        chilog(INFO, "PRIVMSG F1\n");
+        /* IF no recipient, error */
+        if (!validate_parameters(command_str, 1))
+        {
+            if (!is_notice)
+            {
+                error = construct_message(ERR_NORECIPIENT, ctx, user, params, true);
+                send_message(error, user);
+                free_tokens(res1, 2);
+                free_tokens(res2, 3);
+                free_tokens(params, 3);
+                free(error);
+            }  
+            return;
+        }
+        /* If message is empty, error */
+        if (msg == NULL) 
+        {
+            if (!is_notice)
+            {
+                error = construct_message(ERR_NOTEXTTOSEND, ctx, user, NULL, true);
+                send_message(error, user);
+                free_tokens(res1, 2);
+                free_tokens(res2, 3);
+                free_tokens(params, 3);
+                free(error);
+            }
+            return;
+        }
+
+        /* If no target is provided, error */
+        if (dst_nickname == NULL)
+        {
+            if (!is_notice)
+            {
+                error = construct_message(ERR_NORECIPIENT, ctx, user, params, true);
+                send_message(error, user);
+                free_tokens(res1, 2);
+                free_tokens(res2, 3);
+                free_tokens(params, 3);
+                free(error);
+            }
+            return;
+        }
+
+        /* Find desired user */
+        dst_user = user_lookup(ctx->user_list, 0, dst_nickname, 0);
+        
+        /* If no user is found with given nickname, error */
+        if (dst_user == NULL)
+        {
+            if (!is_notice)
+            {
+                error = construct_message(ERR_NOSUCHNICK, ctx, user, params, true);
+                send_message(error, user);
+                free_tokens(res1, 2);
+                free_tokens(res2, 3);
+                free_tokens(params, 3);
+                free(error);
+            }
+            return;
+        }
 
 
-    complete_msg = construct_message(command, ctx, user, res2, false);
-    send_message(complete_msg, dst_user);
+        complete_msg = construct_message(command, ctx, user, params, false);
+        send_message(complete_msg, dst_user);
 
-    chilog(INFO, "%s messaged %s : %s\n", user->nick, dst_user->nick, msg);
+        chilog(INFO, "%s messaged %s : %s\n", user->nick, dst_user->nick, msg);
 
-    free_tokens(res1, 2);
-    free_tokens(res2, 3);
-    free(complete_msg);
-    return;
-    //}
+        free_tokens(res1, 2);
+        free_tokens(res2, 3);
+        free_tokens(params, 3);
+        free(complete_msg);
+        return;
+    }
 
 }
 
@@ -367,7 +461,7 @@ void pong_fn(char* command_str, user* user, server_ctx* ctx)
     return;
 }
 
-
+/* List users function */
 void lusers_fn(char* command_str, user* user, server_ctx* ctx)
 {
     int i;
@@ -375,6 +469,7 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx)
     int user_count, unknown_count, channel_count, op_count;
     int service_count, server_count, client_count;
     
+    /* Counting things */
     user_count = service_count = op_count = channel_count = unknown_count = 0;
     client_count = 0;
     server_count = 1;
@@ -425,6 +520,7 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx)
     status = sprintf(stats[5], "%d", server_count);
     status = sprintf(stats[6], "%d", client_count);
 
+    /* Send out message */
     client = construct_message(RPL_LUSERCLIENT, ctx, user, stats, false);
     op = construct_message(RPL_LUSEROP, ctx, user, stats, false);
     unknown = construct_message(RPL_LUSERUNKNOWN, ctx, user, stats, false);
@@ -456,12 +552,12 @@ void whois_fn(char* command_str, user* user, server_ctx* ctx)
     char* nick;
     char* error;
 
-    if (validate_parameters(command_str, 1, user, ctx) == -1)
+    if (!validate_parameters(command_str, 1))
     {
         return;
     }
 
-    // Order: Command, Nick Target
+    /* Order: Command, Nick if target */
     char** res = tokenize_message(command_str, " ", 2);
     struct user* target = user_lookup(ctx->user_list, 0, res[1], 0);
     
@@ -501,40 +597,88 @@ void whois_fn(char* command_str, user* user, server_ctx* ctx)
 
 void join_fn(char* command_str, user* user, server_ctx* ctx)
 {
-    if (validate_parameters(command_str, 1, user, ctx) == -1)
+    char* error;
+
+    /* Order: Command, channel */
+    char** res1 = tokenize_message(command_str, " ", 2);
+
+    if (!validate_parameters(command_str, 1))
     {
-        // ERR_NEEDMOREPARAMS
+        error = construct_message(ERR_NEEDMOREPARAMS, ctx, user, res1, true);
+        send_message(error, user);
+        free_tokens(res1, 2);
+        free(error);
+        return;    
     }
 
-    // Order: COMMAND, CHANNEL
-    char** res1 = tokenize_message(command_str, " ", 2);
-    /*
-    if (res1[1][0] != '#')
-    {
-        // ERR_NEEDMOREPARAMS
-    }
-    char** res2 = tokenize_message(res1[1], "#", 1);
-    */
-    char* channel_name = res1[1];
+    char* channel_name = strdup(res1[1]);
     channel* c = channel_lookup(channel_name, ctx->channel_list);
-    if (c == NULL)
+    if (c != NULL)
+    {
+        chilog(INFO, "Channel: %s", c->channel_name);
+        if (channel_verifyuser(c, user))
+        {
+            return;
+        }
+    }
+    else if (c == NULL)
     {
         ctx->channel_count++;
         c = channel_init(channel_name, ctx->channel_count, ctx->channel_list);
     }
     channel_adduser(c, user);
 
-    // Send confirmation to all other users (@sign before channel operators)
+    
+    char* join_msg = construct_message("JOIN", ctx, user, res1, false);
+    
+    // Send confirmation to all users
+    char** list_names = (char**)malloc(sizeof(char*) * (c->num_users));
+    struct user* u;
+    int i;
+    int counter = 0;
+    int status;
+    for (u=*c->user_list; u != NULL; u=u->hh.next)
+    {
+        if (channel_verifyoperator(c, u))
+        {
+            status = sprintf(list_names[counter], "@%s", u->nick);
+        }
+        else
+        {
+            list_names[counter] = strdup(u->nick);
+        }
+        send_message(join_msg, u);
+        counter++;
+    }
+
+    char** params = (char**)malloc(sizeof(char*) * 2);
+    params[0] = strdup(channel_name);
+    params[1] = strdup(list_names[0]);
+    params[1] = strcat(params[1], " ");
+    for (i=1; i<c->num_users; i++)
+    {
+        params[1] = strcat(params[1], list_names[i]);
+        if (i<(c->num_users - 1))
+        {
+            params[1] = strcat(params[1], " ");
+        }
+    }
+
+    char* reply = construct_message(RPL_NAMREPLY, ctx, user, params, false);
+    char* end = construct_message(RPL_ENDOFNAMES, ctx, user, params, false);
 
 
-    // Send confirmation to user
-
-
-    // RPL_NAMREPLY
-
+    // RPL_NAMREPLY (@sign before channel operators)
+    send_message(reply, user);
 
     // RPL_ENDOFNAMES
+    send_message(end, user);
 
+    free_tokens(list_names, c->num_users);
+    free_tokens(params, 2);
+    free(res1);
+    free(reply);
+    free(end);
 }
 
 
@@ -551,10 +695,10 @@ void part_fn(char* command_str, user* user, server_ctx* ctx)
     bool part_msg_present = true;
     char* message = strdup(user->nick);
 
-    if (validate_parameters(command_str, 2, user, ctx) == -1)
+    if (!validate_parameters(command_str, 2))
     {
         part_msg_present = false;
-        if (validate_parameters(command_str, 1, user, ctx) == -1)
+        if (!validate_parameters(command_str, 1))
         {
             // ERR_NEEDMOREPARAMS
         }
@@ -610,7 +754,7 @@ void list_fn(char* command_str, user* user, server_ctx* ctx)
     bool all_channels = true;
     channel* c;
 
-    if (validate_parameters(command_str, 1, user, ctx))
+    if (validate_parameters(command_str, 1))
     {
         all_channels = false;
     }
@@ -650,7 +794,7 @@ void mode_fn(char* command_str, user* user, server_ctx* ctx)
 
     // ERRORS: ERR_NOSUCHCHANNEL, ERR_CHANOPRIVSNEEDED,
     // ERR_UNKNOWNMODE, ERR_USERNOTINCHANNEL
-    if (validate_parameters(command_str, 3, user, ctx) == -1)
+    if (!validate_parameters(command_str, 3))
     {
         //ERR_NOSUCHCHANNEL   
         return;  
@@ -727,7 +871,7 @@ void mode_fn(char* command_str, user* user, server_ctx* ctx)
 void oper_fn(char* command_str, user* user, server_ctx* ctx)
 {
     
-    if (validate_parameters(command_str, 2, user, ctx) == -1)
+    if (!validate_parameters(command_str, 2))
     {
         // ERR_NEEDMOREPARAMS              
     }

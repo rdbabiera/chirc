@@ -21,7 +21,7 @@
 
 /**************** Functions for Tokenizing Messages ****************/
 
-// Tokenize message by splitting with tokenizer
+/* Tokenize message by splitting with tokenizer */
 char** tokenize_message(char* message, char* tokenizer, int num_tokens)
 {
     char *saveptr, *curr_token;
@@ -56,7 +56,7 @@ char** tokenize_message(char* message, char* tokenizer, int num_tokens)
 }
 
 
-// Free memory that was held for tokens
+/* Free memory that was held for tokens */
 void free_tokens(char** tokens, int num_tokens)
 {
     int i;
@@ -67,8 +67,8 @@ void free_tokens(char** tokens, int num_tokens)
 }
 
 
-// Validate that the number of parameters is correct
-int validate_parameters(char* command, int target_params, user* user, server_ctx* ctx)
+/* Validate that the number of parameters is correct */
+bool validate_parameters(char* command, int target_params)
 {
     int count = -1;
     char *saveptr, *token;
@@ -82,9 +82,9 @@ int validate_parameters(char* command, int target_params, user* user, server_ctx
     }
     if (count < target_params)
     {
-        return -1;
+        return false;
     }
-    return 0;
+    return true;
 }
 
 

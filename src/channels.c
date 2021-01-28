@@ -23,18 +23,30 @@
 channel* channel_init(char* channel_name, int cd, channel** channel_list)
 {
     channel* new = (channel*)malloc(sizeof(channel));
+
+    new->channel_name = strdup(channel_name);
     new->channel_descriptor = cd;
     new->num_users = 0;
+
     HASH_ADD_INT(*channel_list, channel_descriptor, new);
+
+    new->user_list = (user**)malloc(sizeof(user*));
+    *new->user_list = NULL;
+
+    new->operator_list = (user**)malloc(sizeof(user*));
+    *new->operator_list = NULL;
+
+    pthread_mutex_init(&new->channel_mutex, NULL);
+
     return new;
 }
-
 
 
 /* Deletes a channel from the server */
 void channel_delchannel(channel* target, channel** channel_list)
 {
     channel* temp;
+
     if (*channel_list == target)
     {
         *channel_list = target->hh.next;
@@ -51,15 +63,17 @@ void channel_delchannel(channel* target, channel** channel_list)
 /* Looksup a channel by name */ 
 channel* channel_lookup(char* channel_name, channel** channel_list)
 {
-    channel* c = NULL;
-    int len = strlen(channel_name);
-    for (c = *channel_list; c != NULL; c = c->hh.next)
+    channel* c;
+    channel* res = NULL;
+
+    for (c = *(channel_list); c != NULL; c = c->hh.next)
     {
-        if (!strncmp(channel_name, c->channel_name, len))
+        if (!strcmp(channel_name, c->channel_name))
         {
-            return c;
+            res = c;
         }
     }
+    return res;
 }
 
 
@@ -78,6 +92,7 @@ bool channel_verifyuser(channel* channel, user* user)
     }
     return false;
 }
+
 
 /* Verifies whether or not a user is an operator in a channel */
 bool channel_verifyoperator(channel* channel, user* user)

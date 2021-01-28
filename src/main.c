@@ -64,30 +64,30 @@
 
 
 
-// Function that runs in each thread to service a single client
+/* Function that runs in each thread to service a single client */
 void *service_single_client(void *args)
 {
     worker_args *wa;
     user* curr_user;
     server_ctx* ctx;
 
-    // Unpack arguemnts
+    /* Unpack arguemnts */
     wa = (worker_args*) args;
     curr_user = wa->curr_user;
     ctx = wa->server_ctx;
 
-    // Detach Thread
+    /*  Detach Thread */
     pthread_detach(pthread_self());
     chilog(INFO, "Socket connected\n");
 
-    // Parameters for Receiving Data
-    char buff[MAX_BUFF_SIZE]; // buffer for messages
+    /* Parameters for Receiving Data */
+    char buff[MAX_BUFF_SIZE]; 
     char msg[MAX_BUFF_SIZE]; 
     int recv_status;
     char* carr_found;
     long msg_offset = 0;
 
-    char command_current[128];
+    char command_current[MAX_COMM_SIZE];
     long command_length = 0;
     long remaining_length = 0;
 
@@ -103,11 +103,11 @@ void *service_single_client(void *args)
             pthread_exit(NULL);
         }
 
-        // Transfer buffer to message
+        /* Transfer buffer to message */
         strncpy(msg + msg_offset, buff, recv_status);
         msg_offset += ((long)recv_status);
 
-        // Check message for carriage return ("\r\n")
+        /* Check message for carriage return ("\r\n") */
         carr_found = strstr(msg, "\r\n");
 
         while (carr_found != NULL)
@@ -124,18 +124,17 @@ void *service_single_client(void *args)
             memmove(msg, msg + command_length + 2, remaining_length);
             memset(msg + remaining_length, 0, 513 - remaining_length);
 
-            //Process message
+            /*Process message*/
             match(command_current, curr_user, ctx);
 
-            //Clean out message
+            /* Clean out message */
             memset(command_current, 0, sizeof command_current);
 
-            // Run strstr again to find the next command, if there is one
+            /* Run strstr again to find the next command, if there is one */
             carr_found = strstr(msg, "\r\n");
             msg_offset = remaining_length;
         }
 
-        // Handle Stuff Here
         
     }
 
@@ -243,14 +242,14 @@ int main(int argc, char *argv[])
 
     char hostname[128];
 
-    // Getting address information
+    /* Getting address information */
     if (getaddrinfo(NULL, port, &hints, &res) != 0) 
     {
         perror("getaddrinfo() failed");
         exit(-1);
     }
 
-    // Iterates through sockets and binds to the first one available
+    /* Iterates through sockets and binds to the first one available */
     for (p = res; p != NULL; p = p->ai_next)
     {
         if ((passive_socket = socket(p->ai_family, p->ai_socktype, 
@@ -293,7 +292,7 @@ int main(int argc, char *argv[])
         exit(2);
     }
 
-    // Get hostname for the server
+    /* Get hostname for the server */
     int host_check = gethostname(hostname, sizeof hostname);
     if (host_check == -1) 
     {
@@ -307,7 +306,7 @@ int main(int argc, char *argv[])
 
     while (1)
     {
-        // Create an active socket
+        /* Create an active socket */
         client_addr = calloc(1, sin_size);
         active_socket = accept(passive_socket, (struct sockaddr *) client_addr, 
             &sin_size);
@@ -322,13 +321,13 @@ int main(int argc, char *argv[])
         user* curr_user = user_init(active_socket, (struct sockaddr*) client_addr, 
                                     sin_size);
 
-        // add user management to server here
+        /* add user management to server here */
         chilog(INFO, "About to add\n");
         HASH_ADD_INT(*server_ctx->user_list, client_socket, curr_user);
         chilog(INFO, "Added\n");
         
         wa = calloc(1, sizeof(worker_args));
-        // add worker args here
+        /* add worker args here */
         wa->curr_user = curr_user;
         wa->server_ctx = server_ctx;
 

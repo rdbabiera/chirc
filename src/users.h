@@ -47,13 +47,13 @@ typedef struct user {
     char client_host[128];
     char client_service[128];
 
-    // Hash needed for server context
+    /* Hash needed for server context */
     UT_hash_handle hh;
 
-    // Mutex that allows only one command to be sent to the user at a time
+    /* Mutex that allows only one command to be sent to the user at a time */
     pthread_mutex_t socket_mutex;
 
-    // Statuses
+    /* Statuses */
     bool registered;
     bool irc_operator;
 } user;
@@ -75,7 +75,17 @@ user* user_init(int socket, struct sockaddr* sa, socklen_t salen);
 
 
 /*
- *
+ * user_lookup - lookup a user within the server
+ * 
+ * user_list: list of users 
+ * 
+ * type: int that looks up by nick, user, socket
+ * 
+ * parameter: nickname or username
+ * 
+ * parameter2: socket number
+ * 
+ * Returns: (struct) user
  * 
  */
 
@@ -83,7 +93,13 @@ user* user_lookup(user** user_list, int type, char* parameter, int parameter2);
 
 
 /*
- *
+ * user_delete - delete a user from a list
+ * 
+ * user_list: list that user is to be removed from 
+ * 
+ * target: target user to remove
+ * 
+ * Returns: nothing
  * 
  */
 

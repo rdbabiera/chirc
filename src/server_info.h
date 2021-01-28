@@ -14,8 +14,10 @@
 
 #define MAX_BUFF_SIZE 513
 #define ERROR_SIZE 3
+#define MAX_COMM_SIZE 128
 
-// Server context struct
+
+/* Server context struct */
 typedef struct server_ctx {
     user** user_list;
     channel** channel_list;
@@ -25,13 +27,14 @@ typedef struct server_ctx {
 } server_ctx;
 
 
-// Server context worker arguments struct
+/* Server context worker arguments struct */
 typedef struct worker_args {
     user* curr_user;
     server_ctx* server_ctx;
 } worker_args;
 
-/* Functions */
+/**************** Functions for Tokenizing Messages ****************/
+
 /*
  * service_single_client - Function used by spawned worker thread to manage
  * a single client

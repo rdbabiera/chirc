@@ -16,7 +16,6 @@
 #include "server_info.h"
 #include "log.h"
 #include "parse_util.h"
-#include "message.h"
 #include "construct_msg.h"
 
 
@@ -85,7 +84,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
         }
         else if (!strncmp(msg, ERR_UNKNOWNCOMMAND, ERROR_SIZE))
         {
-            status = sprintf(res, "%s %s %s %s :Unknown command\r\n",
+            status = sprintf(res, ":%s %s %s %s :Unknown command\r\n",
                             ctx->server_name, ERR_UNKNOWNCOMMAND, user->nick, 
                             params[0]);
         }
@@ -96,11 +95,27 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
             status = sprintf(res, ":%s %s %s :MOTD File is missing\r\n",
                             ctx->server_name, ERR_NOMOTD, user->nick);
         }
+
+        /* Channel errors */
+        else if (!strncmp(msg, ERR_CANNOTSENDTOCHAN, ERROR_SIZE))
+        {
+            status = sprintf(res, ":%s %s %s %s :Cannot send to channel\r\n", 
+                        ctx->server_name, ERR_CANNOTSENDTOCHAN, user->nick, 
+                        params[0]);
+        }
     }
 
     /* General messages */
     else
     {
+
+        /* Nick messages */
+        if (!strncmp(msg, "NEW_NICK", 8))
+        {
+            status = sprintf(res, ":%s!%s@%s NICK :%s\r\n", params[0], user->username,
+                            ctx->server_name, user->nick);
+        }
+
         /* Welcome messages*/
         if (!strncmp(msg, RPL_WELCOME, ERROR_SIZE))
         {
@@ -136,7 +151,12 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
         {
             status = sprintf(res, "ERROR :Closing Link: %s (%s)\r\n", 
          
-                            user->client_host, params[1]);
+                            user->client_host, params[0]);
+        }
+        else if (!strncmp(msg, "Q_CHANNEL", 12))
+        {
+            status = sprintf(res, ":%s!%s@%s QUIT :%s\r\n", user->nick,
+                            user->username, ctx->server_name, params[0]);
         }
 
         /* Privmsg and notice messages */
@@ -205,6 +225,25 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
             status = sprintf(res, ":%s %s %s %s :End of WHOIS list\r\n", 
                             ctx->server_name, RPL_ENDOFWHOIS, user->nick, params[1]);
         }
+
+        /* Join messages */
+        else if (!strncmp(msg, "JOIN", 4))
+        {
+            status = sprintf(res, ":%s!%s@%s JOIN %s\r\n", user->nick,
+                            user->username, user->client_host, params[1]);
+        }
+        else if (!strncmp(msg, RPL_NAMREPLY, ERROR_SIZE))
+        {
+            status = sprintf(res, ":%s %s %s = %s :%s\r\n", ctx->server_name, 
+                            RPL_NAMREPLY, user->nick, params[0], params[1]);
+        }
+        else if (!strncmp(msg, RPL_ENDOFNAMES, ERROR_SIZE))
+        {
+            status = sprintf(res, ":%s %s %s %s :End of /NAMES list\r\n", 
+                            ctx->server_name, RPL_ENDOFNAMES, user->nick, params[0]);
+        }
+
+        
     }
 
     return res;

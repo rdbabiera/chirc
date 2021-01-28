@@ -40,4 +40,34 @@ void match(char* command_str, user* user, server_ctx* ctx);
 void send_message(char* message, user* user_dest);
 
 
+/*
+ * send_message - sends a message to a channel's members
+ * 
+ * message: message to be sent
+ * 
+ * channel: channel to be sent to
+ * 
+ * user: user sending the message
+ * 
+ * Returns: nothing
+ * 
+ */
+void send_message_tochannel(char* msg, channel* channel, user* user);
+
+
+/*
+ * send_message - sends a message to all of a user's channels
+ * 
+ * message: message to be sent
+ * 
+ * channel_list: list of channels
+ * 
+ * user: user sending the message
+ * 
+ * Returns: nothing
+ * 
+ */
+void send_message_alluserchannels(char* msg, channel** channel_list, user* user);
+
+
 #endif /* CHIRC_MESSAGE_H_ */

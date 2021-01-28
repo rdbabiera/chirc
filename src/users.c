@@ -16,7 +16,7 @@
 
 
 
-// Initialize a user
+/* Initialize a user */
 user* user_init(int socket, struct sockaddr* sa, socklen_t salen)
 {
     int status;
@@ -27,20 +27,20 @@ user* user_init(int socket, struct sockaddr* sa, socklen_t salen)
     status = getnameinfo(sa, salen, new_user->client_host, 128, 
         new_user->client_service, 128, 0);
     
-    // User Statuses + Mutex
+    /* User Statuses + Mutex */
     pthread_mutex_init(&new_user->socket_mutex, NULL);
     new_user->registered = false;
     new_user->irc_operator = false;
     return new_user;
 }
 
-// Lookup a user
+/* Lookup a user */
 user* user_lookup(user** user_list, int type, char* parameter, int parameter2)
 {
     user* res = NULL;
     user* u;
 
-    //Types: 0 = nickname, 1 = username, 2 = socket
+    /* Types: 0 = nickname, 1 = username, 2 = socket */
     if (type == 0)
     {
         for (u = *user_list; u != NULL; u=u->hh.next)
@@ -75,7 +75,7 @@ user* user_lookup(user** user_list, int type, char* parameter, int parameter2)
 }
 
 
-// Delete a user from a userlist
+/* Delete a user from a userlist */
 void user_delete(user** user_list, user* target)
 {
     user* temp;

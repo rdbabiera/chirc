@@ -36,6 +36,9 @@ typedef struct channel {
 
     // For uthash
     UT_hash_handle hh;
+
+    // Lock Operations
+    pthread_mutex_t channel_mutex;
 } channel;
 
 /***************** Functions *****************/
@@ -74,7 +77,7 @@ void channel_delchannel(channel* target, channel** channel_list);
  * 
  * channel_list: list of channels
  *
- * Returns: (struct) channel
+ * Returns: (struct) channel on success, NULL on failure
  * 
  */
 channel* channel_lookup(char* channel_name, channel** channel_list);
