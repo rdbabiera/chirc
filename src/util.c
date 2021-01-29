@@ -299,18 +299,11 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
     char* temp = strdup(res1[0]);
     char** res2 = tokenize_message(temp, " ", 3);
     free(temp);
+
     chilog(INFO, "PRIVMSG B2\n");
 
     dst_nickname = res2[1];
     command = res2[0];
-
-    /* Order: command, dst user, me */
-    char** params = (char**)malloc(sizeof(char*) * 3);
-    params[0] = strdup(res2[0]);
-    params[1] = strdup(res2[1]);
-    params[2] = strdup(res1[1]);
-
-    chilog(INFO, "PRIVMSG B2.2\n");
 
     /*Check if NOTICE or PRIVMSG*/
     chilog(INFO, "command: %s\n", command);
@@ -318,6 +311,45 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
     {
         is_notice = true;
     }
+    
+    /* IF no recipient, error */
+    if (res2[1] == NULL)
+    {
+        if (!is_notice)
+        {
+            error = construct_message(ERR_NORECIPIENT, ctx, user, res1, true);
+            send_message(error, user);
+            free_tokens(res1, 2);
+            free_tokens(res2, 3);
+            free(error);
+        }  
+        return;
+    }
+
+    if (res1[1] == NULL)
+    {
+        /* If message is empty, error */
+        if (!is_notice)
+        {
+            error = construct_message(ERR_NOTEXTTOSEND, ctx, user, NULL, true);
+            send_message(error, user);
+            free_tokens(res1, 2);
+            free_tokens(res2, 3);
+            free(error);
+        }
+        return;
+    }
+    
+
+    /* Order: command, dst user, me */
+    char** params = (char**)malloc(sizeof(char*) * 3);
+    params[0] = strdup(res2[0]);
+    params[1] = strdup(res2[1]);
+    params[2] = strdup(res1[1]);    
+    chilog(INFO, "%s", params[2]);
+    chilog(INFO, "PRIVMSG B2.2\n");
+
+
         
     
     if (res2[1][0] == '#')
@@ -371,34 +403,9 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
     else
     {
         chilog(INFO, "PRIVMSG F1\n");
-        /* IF no recipient, error */
-        if (!validate_parameters(command_str, 1))
-        {
-            if (!is_notice)
-            {
-                error = construct_message(ERR_NORECIPIENT, ctx, user, params, true);
-                send_message(error, user);
-                free_tokens(res1, 2);
-                free_tokens(res2, 3);
-                free_tokens(params, 3);
-                free(error);
-            }  
-            return;
-        }
-        /* If message is empty, error */
-        if (msg == NULL) 
-        {
-            if (!is_notice)
-            {
-                error = construct_message(ERR_NOTEXTTOSEND, ctx, user, NULL, true);
-                send_message(error, user);
-                free_tokens(res1, 2);
-                free_tokens(res2, 3);
-                free_tokens(params, 3);
-                free(error);
-            }
-            return;
-        }
+        
+        
+        
 
         /* If no target is provided, error */
         if (dst_nickname == NULL)
