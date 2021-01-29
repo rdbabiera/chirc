@@ -32,6 +32,7 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
     struct user* u;
     struct user** user_list;
     char* error;
+    char* temp;
     
     chilog(DEBUG, "BREAKPOINT 0");
 
@@ -40,7 +41,9 @@ void nick_fn(char* command_str, user* user, server_ctx* ctx)
     nickname = res[1];
     if (user->nick != NULL)
     {
+        temp = res[0];
         res[0] = strdup(user->nick);
+        free(temp);
     }
 
     chilog(DEBUG, "|%s|", nickname);
@@ -286,13 +289,16 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
     struct user* dst_user;
     char *msg, *command, *error, *complete_msg;
     bool is_notice = false;
+    bool on_channel = false;
 
     /* Order: command line, message */
     char** res1 = tokenize_message(command_str, ":", 2);
     msg = res1[1];
 
     /* Order: command, dst user */
-    char** res2 = tokenize_message(res1[0], " ", 3);
+    char* temp = strdup(res1[0]);
+    char** res2 = tokenize_message(temp, " ", 3);
+    free(temp);
     chilog(INFO, "PRIVMSG B2\n");
 
     dst_nickname = res2[1];
@@ -307,6 +313,7 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
     chilog(INFO, "PRIVMSG B2.2\n");
 
     /*Check if NOTICE or PRIVMSG*/
+    chilog(INFO, "command: %s\n", command);
     if (!strncmp(command, "NOTICE", 6))
     {
         is_notice = true;
@@ -332,7 +339,6 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
             return;
         }
 
-        bool on_channel;
         on_channel = channel_verifyuser(c, user);
 
         /*Have not joined channel*/
@@ -342,12 +348,11 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
             {
                 error = construct_message(ERR_CANNOTSENDTOCHAN, ctx, user, params, true);
                 send_message(error, user);
-                free_tokens(res1, 2);
-                free_tokens(res2, 3);
-                free_tokens(params, 3);
                 free(error);
-                return;
             }
+            free_tokens(res1, 2);
+            free_tokens(res2, 3);
+            free_tokens(params, 3);
             return;
         }
         chilog(INFO, "PRIVMSG B4\n");
@@ -646,6 +651,8 @@ void join_fn(char* command_str, user* user, server_ctx* ctx)
         chilog(INFO, "Channel: %s", c->channel_name);
         if (channel_verifyuser(c, user))
         {
+            free(channel_name);
+            free_tokens(res1, 2);
             return;
         }
     }
@@ -660,37 +667,30 @@ void join_fn(char* command_str, user* user, server_ctx* ctx)
     char* join_msg = construct_message("JOIN", ctx, user, res1, false);
     
     // Send confirmation to all users
-    char** list_names = (char**)malloc(sizeof(char*) * (c->num_users));
+    char list_names[c->num_users * MAX_NICK_SIZE];
+    memset(list_names, 0, (c->num_users * MAX_NICK_SIZE));
     struct user* u;
-    int i;
-    int counter = 0;
     int status;
     for (u=*c->user_list; u != NULL; u=u->hh.next)
     {
         if (channel_verifyoperator(c, u))
         {
-            status = sprintf(list_names[counter], "@%s", u->nick);
+            status = sprintf(list_names + strlen(list_names), "@%s", u->nick);
         }
         else
         {
-            list_names[counter] = strdup(u->nick);
+            status = sprintf(list_names + strlen(list_names), "%s", u->nick);
+        }
+        if (u->hh.next != NULL)
+        {
+            status = sprintf(list_names + strlen(list_names), " ");
         }
         send_message(join_msg, u);
-        counter++;
     }
 
     char** params = (char**)malloc(sizeof(char*) * 2);
     params[0] = strdup(channel_name);
-    params[1] = strdup(list_names[0]);
-    params[1] = strcat(params[1], " ");
-    for (i=1; i<c->num_users; i++)
-    {
-        params[1] = strcat(params[1], list_names[i]);
-        if (i<(c->num_users - 1))
-        {
-            params[1] = strcat(params[1], " ");
-        }
-    }
+    params[1] = strdup(list_names);
 
     char* reply = construct_message(RPL_NAMREPLY, ctx, user, params, false);
     char* end = construct_message(RPL_ENDOFNAMES, ctx, user, params, false);
@@ -702,9 +702,10 @@ void join_fn(char* command_str, user* user, server_ctx* ctx)
     // RPL_ENDOFNAMES
     send_message(end, user);
 
-    free_tokens(list_names, c->num_users);
     free_tokens(params, 2);
-    free(res1);
+    free_tokens(res1, 2);
+    free(channel_name);
+    free(join_msg);
     free(reply);
     free(end);
 }

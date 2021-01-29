@@ -61,7 +61,10 @@ void free_tokens(char** tokens, int num_tokens)
 {
     int i;
     for (i=0; i<num_tokens; i++){
-        free(tokens[i]);
+        if (tokens[i] != NULL)
+        {
+            free(tokens[i]);
+        }
     }
     free(tokens);
 }
@@ -82,8 +85,10 @@ bool validate_parameters(char* command, int target_params)
     }
     if (count < target_params)
     {
+        free(temp_str);
         return false;
     }
+    free(temp_str);
     return true;
 }
 

@@ -103,7 +103,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
         {
             status = sprintf(res, ":%s %s %s %s :Cannot send to channel\r\n", 
                         ctx->server_name, ERR_CANNOTSENDTOCHAN, user->nick, 
-                        params[0]);
+                        params[1]);
         }
         else if (!strncmp(msg, ERR_NOSUCHCHANNEL, ERROR_SIZE))
         {

@@ -15,6 +15,7 @@
 #define MAX_BUFF_SIZE 513
 #define ERROR_SIZE 3
 #define MAX_COMM_SIZE 128
+#define MAX_NICK_SIZE 12
 
 
 /* Server context struct */

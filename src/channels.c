@@ -80,12 +80,12 @@ channel* channel_lookup(char* channel_name, channel** channel_list)
 /* Verifies whether or not a user is in a channel */
 bool channel_verifyuser(channel* channel, user* user)
 {
+    chilog(INFO, "VERIFYING for %s\n", channel->channel_name);
     struct user* u = NULL;
-    int len;
     for (u = *(channel->user_list); u != NULL; u=u->hh.next)
     {
-        len = strnlen(u->nick, MAX_BUFF_SIZE);
-        if (!strncmp(user->nick, u->nick, len))
+        chilog(INFO, "Member %s\n", u->nick);
+        if (u == user)
         {
             return true;
         }

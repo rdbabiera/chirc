@@ -125,6 +125,7 @@ void *service_single_client(void *args)
             memset(msg + remaining_length, 0, 513 - remaining_length);
 
             /*Process message*/
+            chilog(INFO, "%d Sent Command: %s\n", curr_user->client_socket, command_current);
             match(command_current, curr_user, ctx);
 
             /* Clean out message */
@@ -274,7 +275,7 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        if (listen(passive_socket, 5) == -1)
+        if (listen(passive_socket, 20) == -1)
         {
             perror("Socket listen() failed");
             close(passive_socket);
