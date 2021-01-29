@@ -118,12 +118,12 @@ void send_message(char* message, user* user_dest)
 void send_message_tochannel(char* msg, channel* channel, user* user)
 {
     pthread_mutex_lock(&(channel->channel_mutex));
-    struct user* u;
-    for (u=*channel->user_list; u != NULL; u=u->hh.next)
+    struct channel_user* cu;
+    for (cu=*channel->user_list; cu != NULL; cu=cu->hh.next)
     {
-        if (u != user)
+        if (cu->user != user)
         {
-            send_message(msg, u);
+            send_message(msg, cu->user);
         }
     }
     pthread_mutex_unlock(&(channel->channel_mutex));

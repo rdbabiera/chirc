@@ -30,11 +30,8 @@ channel* channel_init(char* channel_name, int cd, channel** channel_list)
 
     HASH_ADD_INT(*channel_list, channel_descriptor, new);
 
-    new->user_list = (user**)malloc(sizeof(user*));
+    new->user_list = (channel_user**)malloc(sizeof(channel_user*));
     *new->user_list = NULL;
-
-    new->operator_list = (user**)malloc(sizeof(user*));
-    *new->operator_list = NULL;
 
     pthread_mutex_init(&new->channel_mutex, NULL);
 
@@ -45,8 +42,6 @@ channel* channel_init(char* channel_name, int cd, channel** channel_list)
 /* Deletes a channel from the server */
 void channel_delchannel(channel* target, channel** channel_list)
 {
-    channel* temp;
-
     if (*channel_list == target)
     {
         *channel_list = target->hh.next;
@@ -55,8 +50,18 @@ void channel_delchannel(channel* target, channel** channel_list)
     {
         HASH_DEL(*channel_list, target);
     }
+
+    channel_user* cu;
+    channel_user* temp = NULL;
+    for (cu = *(target->user_list); cu != NULL; cu=cu->hh.next)
+    {
+        free(temp);
+        temp = cu;
+    }
+    free(temp);
     free(target->channel_name);
     free(target->user_list);
+    free(target);
 }
 
 
@@ -82,9 +87,10 @@ bool channel_verifyuser(channel* channel, user* user)
 {
     chilog(INFO, "VERIFYING for %s\n", channel->channel_name);
     struct user* u = NULL;
-    for (u = *(channel->user_list); u != NULL; u=u->hh.next)
+    channel_user* cu = NULL;
+    for (cu = *(channel->user_list); cu != NULL; cu=cu->hh.next)
     {
-        chilog(INFO, "Member %s\n", u->nick);
+        u = cu->user;
         if (u == user)
         {
             return true;
@@ -98,9 +104,11 @@ bool channel_verifyuser(channel* channel, user* user)
 bool channel_verifyoperator(channel* channel, user* user)
 {
     struct user* u = NULL;
-    for (u = *(channel->operator_list); u != NULL; u=u->hh.next)
+    channel_user* cu = NULL;
+    for (cu = *(channel->user_list); cu != NULL; cu=cu->hh.next)
     {
-        if (u == user)
+        u = cu->user;
+        if ((u == user) && cu->is_operator)
         {
             return true;
         }
@@ -112,37 +120,49 @@ bool channel_verifyoperator(channel* channel, user* user)
 /* Adds a User to a Channel */
 void channel_adduser(channel* channel, user* user)
 {
-    HASH_ADD_INT(*(channel->user_list), client_socket, user);
+    channel_user* new_user = (channel_user*)malloc(sizeof(channel_user));
+    new_user->user = user;
+    new_user->is_operator = false;
+    new_user->member_no = channel->num_users;
+    HASH_ADD_INT(*(channel->user_list), member_no, new_user);
     channel->num_users++;
 }
+
 
 /* Adds a User to a Channel's Operators List */
 void channel_addoperator(channel* channel, user* user)
 {
     struct user* u = NULL;
-    for (u = *(channel->operator_list); u != NULL; u=u->hh.next)
+    channel_user* cu = NULL;
+    for (cu = *(channel->user_list); cu != NULL; cu=cu->hh.next)
     {
+        u = cu->user;
         if (u == user)
         {
-            return;
+            cu->is_operator = true;
         }
     }
-    HASH_ADD_INT(*(channel->operator_list), client_socket, user);
 }
 
 
 /* Removes a User from a Channel */
 void channel_deluser(channel* channel, user* user)
 {
-    if (*(channel->user_list) == user)
+    struct user* u = NULL;
+    channel_user* cu = NULL;
+    channel_user* target = NULL;
+
+    for (cu = *(channel->user_list); cu != NULL; cu=cu->hh.next)
     {
-        *(channel->user_list) = (*(channel->user_list))->hh.next;
-    } 
-    else 
-    {
-        HASH_DEL(*(channel->user_list), user);
+        u = cu->user;
+        if (u == user)
+        {
+            target = cu;
+            break;
+        }
     }
-    channel->num_users--;
+    HASH_DEL(*(channel->user_list), target);
+    free(target);
 }
 
 
@@ -150,19 +170,15 @@ void channel_deluser(channel* channel, user* user)
 void channel_deop(channel* channel, user* user)
 {
     struct user* u = NULL;
-    for (u = *(channel->operator_list); u != NULL; u=u->hh.next)
+    channel_user* cu = NULL;
+
+    for (cu = *(channel->user_list); cu != NULL; cu=cu->hh.next)
     {
+        u = cu->user;
         if (u == user)
         {
-            if (*(channel->operator_list) == user)
-            {
-                *(channel->operator_list) = (*(channel->operator_list))->hh.next;
-            } 
-            else 
-            {
-                HASH_DEL(*(channel->operator_list), user);
-            }
-            return;
+            cu->is_operator = false;
         }
-    } 
+    }
+
 }

@@ -301,8 +301,8 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
         /* Part messages */
         else if (!strncmp(msg, "PART", 4))
         {
-            status = sprintf(res, ":%s %s %s %s : %s \r\n", ctx->server_name,
-                            "PART", user->nick, params[1], params[2]);
+            status = sprintf(res, ":%s!%s@%s %s %s\r\n", user->nick, user->username, 
+                            user->client_host, "PART", params[1]);
         }
 
         /* Mode messages */

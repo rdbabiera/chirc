@@ -306,9 +306,10 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
     command = res2[0];
 
     /*Check if NOTICE or PRIVMSG*/
-    chilog(INFO, "command: %s\n", command);
+    chilog(INFO, "command: %s, %d\n", command, strlen(command));
     if (!strncmp(command, "NOTICE", 6))
     {
+        chilog(INFO, "works\n");
         is_notice = true;
     }
     
@@ -362,12 +363,15 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx)
 
         if (c == NULL)
         {
-            error = construct_message(ERR_NOSUCHNICK, ctx, user, params, true);
-            send_message(error, user);
+            if (!is_notice)
+            {
+                error = construct_message(ERR_NOSUCHNICK, ctx, user, params, true);
+                send_message(error, user);
+                free(error);
+            }
             free_tokens(res1, 2);
             free_tokens(res2, 3);
             free_tokens(params, 3);
-            free(error);
             return;
         }
 
@@ -676,23 +680,23 @@ void join_fn(char* command_str, user* user, server_ctx* ctx)
     // Send confirmation to all users
     char list_names[c->num_users * MAX_NICK_SIZE];
     memset(list_names, 0, (c->num_users * MAX_NICK_SIZE));
-    struct user* u;
+    struct channel_user* cu;
     int status;
-    for (u=*c->user_list; u != NULL; u=u->hh.next)
+    for (cu=*c->user_list; cu != NULL; cu=cu->hh.next)
     {
-        if (channel_verifyoperator(c, u))
+        if (channel_verifyoperator(c, cu->user))
         {
-            status = sprintf(list_names + strlen(list_names), "@%s", u->nick);
+            status = sprintf(list_names + strlen(list_names), "@%s", cu->user->nick);
         }
         else
         {
-            status = sprintf(list_names + strlen(list_names), "%s", u->nick);
+            status = sprintf(list_names + strlen(list_names), "%s", cu->user->nick);
         }
-        if (u->hh.next != NULL)
+        if (cu->user->hh.next != NULL)
         {
             status = sprintf(list_names + strlen(list_names), " ");
         }
-        send_message(join_msg, u);
+        send_message(join_msg, cu->user);
     }
 
     char** params = (char**)malloc(sizeof(char*) * 2);
@@ -727,6 +731,8 @@ void part_fn(char* command_str, user* user, server_ctx* ctx)
      * Remove user from channel + channel list.
      * If channel is empty, destroy it.
      */
+
+    char* parting_message;
 
     bool part_msg_present = true;
     char* message = strdup(user->nick);
@@ -785,9 +791,9 @@ void part_fn(char* command_str, user* user, server_ctx* ctx)
         return;
     }
 
-    channel_deluser(c, user);
-    if (c->num_users == 0)
+    if (c->num_users == 1)
     {
+        channel_deluser(c, user);
         channel_delchannel(c, ctx->channel_list);      
     }
     else
@@ -796,7 +802,7 @@ void part_fn(char* command_str, user* user, server_ctx* ctx)
         // can be declared outside
         // message is res1[1]
         // need list of channels
-        char* parting_message = construct_message("PART", ctx, user, res1, false);
+        parting_message = construct_message("PART", ctx, user, res1, false);
 
         for (c=*(ctx->channel_list); c != NULL; c=c->hh.next)
         {   
@@ -804,9 +810,11 @@ void part_fn(char* command_str, user* user, server_ctx* ctx)
             // send each user an f in chat for their lad
             // F - Lucy
             send_message_tochannel(parting_message, c, user);
+            channel_deluser(c, user);
         }
-        free(parting_message);
     }
+    send_message(parting_message, user);
+    free(parting_message);
     free_tokens(res0, 2);
     free_tokens(res1, 3);
 
@@ -867,7 +875,7 @@ void mode_fn(char* command_str, user* user, server_ctx* ctx)
 
     bool ischannelop = false;
     int mode = 0;
-    struct user* temp;
+    struct channel_user* temp;
 
     /* Order: COMMAND, CHANNEL, MODE, NICK */
     char** res1 = tokenize_message(command_str, " ", 4);
@@ -886,7 +894,7 @@ void mode_fn(char* command_str, user* user, server_ctx* ctx)
         free(error);
         return;  
     }
-    if (c == NULL)
+    if (c == NULL) 
     {
         char* error = construct_message(ERR_NOSUCHCHANNEL, ctx, user, res1, true);
         send_message(error, user);
@@ -944,7 +952,7 @@ void mode_fn(char* command_str, user* user, server_ctx* ctx)
         // send_message
         for(temp = *c->user_list; temp != NULL; temp=temp->hh.next)
         {
-            send_message(message, temp);
+            send_message(message, temp->user);
         }
         /// free message
         free(message);

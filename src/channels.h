@@ -23,6 +23,18 @@
 #include "users.h"
 
 /* 
+ * Channel User Struct - Keeps track of user information in a channel
+ * 
+ */
+typedef struct channel_user {
+    user* user;
+    bool is_operator;
+    int member_no;
+
+    UT_hash_handle hh;
+} channel_user;
+
+/* 
  * Channel Struct - Keeps track of channel information
  * 
  */
@@ -31,8 +43,7 @@ typedef struct channel {
     int channel_descriptor;
     int num_users;
 
-    user** user_list;
-    user** operator_list;
+    channel_user** user_list;
 
     // For uthash
     UT_hash_handle hh;
