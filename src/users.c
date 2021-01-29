@@ -34,6 +34,7 @@ user* user_init(int socket, struct sockaddr* sa, socklen_t salen)
     return new_user;
 }
 
+
 /* Lookup a user */
 user* user_lookup(user** user_list, int type, char* parameter, int parameter2)
 {
@@ -45,7 +46,8 @@ user* user_lookup(user** user_list, int type, char* parameter, int parameter2)
     {
         for (u = *user_list; u != NULL; u=u->hh.next)
         {
-            if (!strcmp(parameter, u->nick)){
+            if (!strcmp(parameter, u->nick))
+            {
                 res = u;
                 return res;
             }
@@ -54,7 +56,8 @@ user* user_lookup(user** user_list, int type, char* parameter, int parameter2)
     {
         for (u = *user_list; u != NULL; u=u->hh.next)
         {
-            if (!strcmp(parameter, u->username)){
+            if (!strcmp(parameter, u->username))
+            {
                 res = u;
                 return res;
             }

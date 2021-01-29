@@ -60,7 +60,8 @@ char** tokenize_message(char* message, char* tokenizer, int num_tokens)
 void free_tokens(char** tokens, int num_tokens)
 {
     int i;
-    for (i=0; i<num_tokens; i++){
+    for (i=0; i<num_tokens; i++)
+    {
         if (tokens[i] != NULL)
         {
             free(tokens[i]);

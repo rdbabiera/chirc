@@ -33,13 +33,10 @@
  * 
  * params: list of extra parameters as needed for the error
  * 
- * error: A boolean that tells whether the message is an error or something else
+ * error: A boolean that tells whether the message is an error or message
+ *          (true = error, false = RPL message)
  * 
  * Returns: char*
- * 
- * Credit: After speaking with multiple people within Networks about how they were
- * handling errors, we decided it would be best to change our previous 2 extra
- * parameters, to a string array for extra parameters to make things cleaner. 
  * 
  */
 char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,

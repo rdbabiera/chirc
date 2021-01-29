@@ -63,10 +63,10 @@
 #include "utlist.h"
 
 
-
 /* Function that runs in each thread to service a single client */
 void *service_single_client(void *args)
 {
+    /* Create Environment Variables */
     worker_args *wa;
     user* curr_user;
     server_ctx* ctx;
@@ -78,7 +78,6 @@ void *service_single_client(void *args)
 
     /*  Detach Thread */
     pthread_detach(pthread_self());
-    chilog(INFO, "Socket connected\n");
 
     /* Parameters for Receiving Data */
     char buff[MAX_BUFF_SIZE]; 
@@ -91,10 +90,9 @@ void *service_single_client(void *args)
     long command_length = 0;
     long remaining_length = 0;
 
-
+    /* Receive messages from the socket*/
     while(1)
     {
-        chilog(INFO, "Waiting for a message...\n");
         if ((recv_status = recv(curr_user->client_socket, buff, 512, 0)) == -1)
         {
             perror("Socket recv() failed");
@@ -125,7 +123,6 @@ void *service_single_client(void *args)
             memset(msg + remaining_length, 0, 513 - remaining_length);
 
             /*Process message*/
-            chilog(INFO, "%d Sent Command: %s\n", curr_user->client_socket, command_current);
             match(command_current, curr_user, ctx);
 
             /* Clean out message */
@@ -136,7 +133,6 @@ void *service_single_client(void *args)
             msg_offset = remaining_length;
         }
 
-        
     }
 
         pthread_exit(NULL);
@@ -226,7 +222,7 @@ int main(int argc, char *argv[])
     server_ctx->channel_count = 0;
     server_ctx->operator_password = passwd;
 
-    /**************** Functions for Handling Sockets ****************/
+    /**************** Handling Sockets ****************/
     int passive_socket, active_socket;
     pthread_t worker_thread;
     struct addrinfo hints, *res, *p;
@@ -322,13 +318,12 @@ int main(int argc, char *argv[])
         user* curr_user = user_init(active_socket, (struct sockaddr*) client_addr, 
                                     sin_size);
 
-        /* add user management to server here */
-        chilog(INFO, "About to add\n");
+        /* Add user management to server */
         HASH_ADD_INT(*server_ctx->user_list, client_socket, curr_user);
-        chilog(INFO, "Added\n");
         
         wa = calloc(1, sizeof(worker_args));
-        /* add worker args here */
+
+        /* Add worker args */
         wa->curr_user = curr_user;
         wa->server_ctx = server_ctx;
 

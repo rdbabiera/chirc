@@ -63,7 +63,7 @@ void free_tokens(char** tokens, int num_tokens);
  * 
  * target_params: target number of params
  * 
- * Returns: boolean
+ * Returns: boolean, true on valid number of parameters
  * 
  */
 bool validate_parameters(char* command, int target_params);

@@ -18,7 +18,20 @@
 #define MAX_NICK_SIZE 12
 
 
-/* Server context struct */
+/* 
+ * server_ctx - Server context struct 
+ * 
+ * user_list: list of users on the server
+ * 
+ * channel_lsit: list of channels of the server
+ * 
+ * channel_count: number of channels on the server
+ * 
+ * server_name: name of the server
+ * 
+ * operator_password: password needed for operator
+ * 
+ */
 typedef struct server_ctx {
     user** user_list;
     channel** channel_list;
@@ -28,11 +41,19 @@ typedef struct server_ctx {
 } server_ctx;
 
 
-/* Server context worker arguments struct */
+/* 
+ * worker_args - Server context worker arguments struct 
+ * 
+ * curr_user: current user
+ * 
+ * server_ctx: server context
+ * 
+ */
 typedef struct worker_args {
     user* curr_user;
     server_ctx* server_ctx;
 } worker_args;
+
 
 /**************** Functions for Tokenizing Messages ****************/
 

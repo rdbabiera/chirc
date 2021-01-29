@@ -29,11 +29,11 @@
 /**************** Structs for Parsing Commands ****************/
 
 /*
- * Command struct - Attaches command function to command name
+ * Command struct - Command name and its associated function
  * 
- * - cmd_name: Command's name in a string format
+ * cmd_name: Command's name in a string format
  * 
- * - execute_cmd: Command's handler function
+ * execute_cmd: Command's handler function
  * 
  */
 typedef struct command {
@@ -42,7 +42,6 @@ typedef struct command {
 } cmd;
 
 /**************** Functions for Handling Commands ****************/
-
 /*
  * nick_fn - Attach NICK to user
  * 
@@ -82,14 +81,16 @@ void user_fn(char* command_str, user* user, server_ctx* ctx);
  */
 void quit_fn(char* command_str, user* user, server_ctx* ctx);
 
+
 /*
- * privmsg_fn - Send a message to designated location
+ * privmsg_notice_fn - Sends a private message or a notice 
+ *                      to a specified user or channel.
  * 
  * command: command line to be parsed
  * 
- * user: destination user/channel for message
+ * user: user sending the message
  * 
- * ctx: server ocntext
+ * ctx: server context
  * 
  * Returns: nothing
  */
@@ -99,9 +100,11 @@ void privmsg_notice_fn(char* command_str, user* user, server_ctx* ctx);
 /*
  * ping_fn - Processes ping and sends a pong back to the client
  * 
- * user: destination user/channel for message
+ * command_str: original command string the user sent
  * 
- * ctx: server ocntext
+ * user: user calling PING
+ * 
+ * ctx: server context
  * 
  * Returns: nothing
  */
@@ -111,9 +114,11 @@ void ping_fn(char* command_str, user* user, server_ctx* ctx);
 /*
  * pong_fn - Drops pong message from client
  * 
- * user: destination user/channel for message
+ * command_str: original command string the user sent
  * 
- * ctx: server ocntext
+ * user: user ponging the server
+ * 
+ * ctx: server context
  * 
  * Returns: nothing
  */
@@ -121,11 +126,13 @@ void pong_fn(char* command_str, user* user, server_ctx* ctx);
 
 
 /*
- * lusers_fn - Drops pong message from client
+ * lusers_fn - lists server statistics
  * 
- * user: destination user/channel for message
+ * command_str: original command string the user sent
  * 
- * ctx: server ocntext
+ * user: user calling LUSERS
+ * 
+ * ctx: server context
  * 
  * Returns: nothing
  */
@@ -133,9 +140,11 @@ void lusers_fn(char* command_str, user* user, server_ctx* ctx);
 
 
 /*
- * whois_fn - Drops pong message from client
+ * whois_fn - shows information of inputted user
  * 
- * user: destination user/channel for message
+ * command_str: original command string the user sent
+ * 
+ * user: user calling WHOIS
  * 
  * ctx: server context
  * 
@@ -147,7 +156,9 @@ void whois_fn(char* command_str, user* user, server_ctx* ctx);
 /*
  * join_fn - Allows client to join/create a channel
  * 
- * user: destination user/channel for message
+ * command_str: original command string the user sent
+ * 
+ * user: user joining the channel
  * 
  * ctx: server context
  * 
@@ -159,7 +170,9 @@ void join_fn(char* command_str, user* user, server_ctx* ctx);
 /*
  * part_fn - Allows client to leave/delete a channel
  * 
- * user: destination user/channel for message
+ * command_str: original command string the user sent
+ * 
+ * user: user leaving the channel
  * 
  * ctx: server context
  * 
@@ -171,7 +184,9 @@ void part_fn(char* command_str, user* user, server_ctx* ctx);
 /*
  * list_fn - Lists channels, amount of users in a channel, and topic
  * 
- * user: destination user/channel for message
+ * command_str: original command string the user sent
+ * 
+ * user: user calling LIST
  * 
  * ctx: server context
  * 
@@ -183,7 +198,9 @@ void list_fn(char* command_str, user* user, server_ctx* ctx);
 /*
  * mode_fn - Allows user to assign channel operator modes to users
  * 
- * user: destination user/channel for message
+ * command_str: original command string the user sent
+ * 
+ * user: user calling MODE
  * 
  * ctx: server context
  * 
@@ -195,7 +212,9 @@ void mode_fn(char* command_str, user* user, server_ctx* ctx);
 /*
  * oper_fn - Allows client to become an irc operator
  * 
- * user: destination user/channel for message
+ * command_str: original command string the user sent
+ * 
+ * user: user calling OPER
  * 
  * ctx: server context
  * 

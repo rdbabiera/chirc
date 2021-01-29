@@ -32,7 +32,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
     if (error == true) 
     {
 
-        /* Nickname errors */
+        /* NICK errors */
         if (!strncmp(msg, ERR_NICKNAMEINUSE, ERROR_SIZE))
         {
             status = sprintf(res, ":%s %s %s %s :Nickname is already in use\r\n",
@@ -45,7 +45,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
                             ctx->server_name, ERR_NONICKNAMEGIVEN,user->nick);
         }
 
-        /* Username errors */
+        /* USER errors */
         else if (!strncmp(msg, ERR_ALREADYREGISTRED, ERROR_SIZE))
         {
             status = sprintf(res, ":%s %s %s :Unauthorized command (already "
@@ -53,7 +53,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
                             ERR_ALREADYREGISTRED, user->nick);
         }
         
-        /* Privmsg and notice errors */
+        /* PRIVMSG and NOTICE errors */
         else if (!strncmp(msg, ERR_NOTEXTTOSEND, ERROR_SIZE))
         {
             status = sprintf(res, ":%s %s %s :No text to send\r\n", 
@@ -98,7 +98,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
                             ctx->server_name, ERR_NOMOTD, user->nick);
         }
 
-        /* Channel errors */
+        /* CHANNEL errors */
         else if (!strncmp(msg, ERR_CANNOTSENDTOCHAN, ERROR_SIZE))
         {
             status = sprintf(res, ":%s %s %s %s :Cannot send to channel\r\n", 
@@ -130,7 +130,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
                             params[1]);
         }
 
-        /* Mode errors */
+        /* MODE errors */
         else if (!strncmp(msg, ERR_UNKNOWNMODE, ERROR_SIZE))
         {
             status = sprintf(res, ":%s %s %s %s :is unknown mode char to me\r\n", 
@@ -138,7 +138,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
                             params[2]);
         }
 
-        /* Oper errors */
+        /* OPER errors */
         else if (!strncmp(msg, ERR_PASSWDMISMATCH, ERROR_SIZE))
         {
             status = sprintf(res, ":%s %s %s :Password incorrect\r\n", 
@@ -150,7 +150,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
     else
     {
 
-        /* Nick messages */
+        /* NICK messages */
         if (!strncmp(msg, "NEW_NICK", 8))
         {
             status = sprintf(res, ":%s!%s@%s NICK :%s\r\n", params[0], 
@@ -160,10 +160,10 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
         /* Welcome messages*/
         if (!strncmp(msg, RPL_WELCOME, ERROR_SIZE))
         {
-            status = sprintf(res, ":%s %s %s :Welcome to the Internet Relay Network "
-                            "%s!%s@%s\r\n", ctx->server_name, RPL_WELCOME, 
-                           user->nick,user->nick, user->username, 
-                           user->client_host);
+            status = sprintf(res, ":%s %s %s :Welcome to the Internet Relay " 
+                            "Network %s!%s@%s\r\n", ctx->server_name, RPL_WELCOME, 
+                            user->nick,user->nick, user->username, 
+                            user->client_host);
         }
         else if (!strncmp(msg, RPL_YOURHOST, ERROR_SIZE))
         {
@@ -188,7 +188,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
                             ctx->server_name);
         }
 
-        /* Quit messages */
+        /* QUIT messages */
         else if (!strncmp(msg, "QUIT", 4))
         {
             status = sprintf(res, "ERROR :Closing Link: %s (%s)\r\n", 
@@ -201,7 +201,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
                             user->username, ctx->server_name, params[0]);
         }
 
-        /* Privmsg and notice messages */
+        /* PRIVMSG and NOTICE messages */
         else if ((!strncmp(msg, "PRIVMSG", 7)) || (!strncmp(msg, "NOTICE", 6)))
         {
             status = sprintf(res, ":%s!%s@%s %s %s :%s\r\n", 
@@ -209,7 +209,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
                             params[1], params[2]);
         }
 
-        /* Ping and pong messages */
+        /* PING and PONG messages */
         else if (!strncmp(msg, "PONG", 4))
         {
             status = sprintf(res, ":%s PONG %s\r\n", 
@@ -220,8 +220,8 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
         /* LUSERS messages */
         else if (!strncmp(msg, RPL_LUSERCLIENT, ERROR_SIZE))
         {
-            status = sprintf(res, ":%s %s %s :There are %s users and %s services "
-                            "on 1 servers\r\n", ctx->server_name, RPL_LUSERCLIENT, 
+            status = sprintf(res, ":%s %s %s :There are %s users and %s services"
+                            " on 1 servers\r\n", ctx->server_name, RPL_LUSERCLIENT, 
                             user->nick, params[0], params[4]);
         }
         else if (!strncmp(msg, RPL_LUSEROP, ERROR_SIZE))
@@ -280,7 +280,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
                             RPL_WHOISCHANNELS, user->nick, params[0], params[5]);
         }
 
-        /* Join messages */
+        /* JOIN messages */
         else if (!strncmp(msg, "JOIN", 4))
         {
             status = sprintf(res, ":%s!%s@%s JOIN %s\r\n", user->nick,
@@ -298,25 +298,31 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
                             params[0]);
         }
 
-        /* Part messages */
+        /* PART messages */
+        else if (!strncmp(msg, "PAR_M", 5))
+        {
+            status = sprintf(res, ":%s!%s@%s %s %s :%s\r\n", user->nick, 
+                            user->username, user->client_host, "PART", 
+                            params[1], params[2]);
+        }
         else if (!strncmp(msg, "PART", 4))
         {
-            status = sprintf(res, ":%s!%s@%s %s %s\r\n", user->nick, user->username, 
-                            user->client_host, "PART", params[1]);
+            status = sprintf(res, ":%s!%s@%s %s %s\r\n", user->nick, 
+                            user->username, user->client_host, "PART", params[1]);
         }
 
-        /* Mode messages */
+        /* MODE messages */
         else if (!strncmp(msg, "MODE", 4)) 
         {
-            status = sprintf(res, ":%s MODE %s %s :%s\r\n", user->nick, params[1],
-                            params[3], params[2]);
+            status = sprintf(res, ":%s MODE %s %s %s\r\n", user->nick, params[1],
+                            params[2], params[3]);
         }
 
-        /* list messages */
+        /* LIST messages */
         else if (!strncmp(msg, RPL_LIST, ERROR_SIZE))
         {
             status = sprintf(res, ":%s %s %s %s %s : \r\n", ctx->server_name,
-                            RPL_LIST, user->nick, params[1], params[2]);
+                            RPL_LIST, user->nick, params[0], params[1]);
         }
         else if (!strncmp(msg, RPL_LISTEND, ERROR_SIZE))
         {
@@ -324,7 +330,7 @@ char* construct_message(char* msg, server_ctx* ctx, user* user, char** params,
                             RPL_LISTEND, user->nick);
         }
 
-        /* Oper message */
+        /* OPER message */
         else if (!strncmp(msg, RPL_YOUREOPER, ERROR_SIZE))
         {
             status = sprintf(res, ":%s %s %s :You are now an IRC operator\r\n",

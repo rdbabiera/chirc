@@ -24,19 +24,19 @@
 /* 
  * User Struct - Keeps track of user information
  *  
- * - nick: User's nickname
+ * nick: User's nickname
  * 
- * - user: User's username
+ * user: User's username
  * 
- * - full_name: User's full name
+ * full_name: User's full name
  * 
- * - client_socket: Socket that the user is attached to
+ * client_socket: Socket that the user is attached to
  * 
- * - client_host: Hostname of host that user is attached to
+ * client_host: Hostname of host that user is attached to
  * 
- * - client_service: Service provider of host that user is attached to
+ * client_service: Service provider of host that user is attached to
  * 
- * - rpl_welcome: Bool to see if the welcome message has been sent
+ * rpl_welcome: Bool to see if the welcome message has been sent
  * 
  */
 typedef struct user {
@@ -57,6 +57,7 @@ typedef struct user {
     bool registered;
     bool irc_operator;
 } user;
+
 
 /***************** Functions *****************/
 
@@ -93,7 +94,7 @@ user* user_lookup(user** user_list, int type, char* parameter, int parameter2);
 
 
 /*
- * user_delete - delete a user from a list
+ * user_delete - delete a user from a user list
  * 
  * user_list: list that user is to be removed from 
  * 

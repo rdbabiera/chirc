@@ -25,12 +25,12 @@ void match(char* command_str, user* user, server_ctx* ctx)
 
     matched == false;
 
-    if(command_str == NULL)
+    if (command_str == NULL)
     {
         return;
     }
 
-    /* Filling out command array */
+    /* Array of possible commands */
     cmd command_arr[14] = {
                 {"NICK", nick_fn}, 
                 {"USER", user_fn},
@@ -51,7 +51,7 @@ void match(char* command_str, user* user, server_ctx* ctx)
     /* Getting command from command_str */
     char* command = strtok_r(temp_str, " ", &saveptr1);
     
-
+    /* Find a match by iterating through command array */
     for(int i = 0; i < 14; i++)
     {
         if (!strcmp(command_arr[i].cmd_name, command)) 
@@ -62,16 +62,20 @@ void match(char* command_str, user* user, server_ctx* ctx)
                 if (user->nick == NULL) 
                 {
                     user->nick = "*";
-                    char* error = construct_message(ERR_NOTREGISTERED, ctx, user, NULL, true);
+                    char* error = construct_message(ERR_NOTREGISTERED, ctx, 
+                                user, NULL, true);
                     send_message(error,user);
                     free(error);
+                    free(temp_str);
                     user->nick = NULL;
                     return;
                 }
                 else
                 {
-                    char* error = construct_message(ERR_NOTREGISTERED, ctx, user, NULL, true);
+                    char* error = construct_message(ERR_NOTREGISTERED, ctx, 
+                                user, NULL, true);
                     send_message(error,user);
+                    free(temp_str);
                     free(error);
                     return;
                 }
@@ -82,11 +86,13 @@ void match(char* command_str, user* user, server_ctx* ctx)
         }
     }
 
+    /* Invalid command error */
     char** invalid_command = (char**)malloc(sizeof(char*));
     invalid_command[0] = command;
     if (user->registered == true)
     {
-        char* error = construct_message(ERR_UNKNOWNCOMMAND, ctx, user, invalid_command, true);
+        char* error = construct_message(ERR_UNKNOWNCOMMAND, ctx, user, 
+                    invalid_command, true);
         send_message(error, user);
         free_tokens(invalid_command, 1);
         free(error);
@@ -95,16 +101,15 @@ void match(char* command_str, user* user, server_ctx* ctx)
     else
     {
         return;
-    }
-    
+    } 
 }
 
 
 /* Sends message to a client */
-void send_message(char* message, user* user_dest)
+void send_message(char* msg, user* user_dest)
 {
     pthread_mutex_lock(&(user_dest->socket_mutex));
-    if (send(user_dest->client_socket, message, strlen(message), 0) == -1)
+    if (send(user_dest->client_socket, msg, strlen(msg), 0) == -1)
     {
         perror("Socket send() failed");
         pthread_mutex_unlock(&(user_dest->socket_mutex));

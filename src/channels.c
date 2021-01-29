@@ -19,9 +19,12 @@
 #include "uthash.h"
 #include "utlist.h"
 
+
 /* Initializes a channel */
 channel* channel_init(char* channel_name, int cd, channel** channel_list)
 {
+    chilog(INFO, "Initializing channel %s\n", channel_name);
+
     channel* new = (channel*)malloc(sizeof(channel));
 
     new->channel_name = strdup(channel_name);
@@ -42,6 +45,8 @@ channel* channel_init(char* channel_name, int cd, channel** channel_list)
 /* Deletes a channel from the server */
 void channel_delchannel(channel* target, channel** channel_list)
 {
+    chilog(INFO, "Deleting channel %s\n", target->channel_name);
+
     if (*channel_list == target)
     {
         *channel_list = target->hh.next;
@@ -53,6 +58,8 @@ void channel_delchannel(channel* target, channel** channel_list)
 
     channel_user* cu;
     channel_user* temp = NULL;
+
+    /* Free all users in a channel*/
     for (cu = *(target->user_list); cu != NULL; cu=cu->hh.next)
     {
         free(temp);
@@ -68,6 +75,8 @@ void channel_delchannel(channel* target, channel** channel_list)
 /* Looksup a channel by name */ 
 channel* channel_lookup(char* channel_name, channel** channel_list)
 {
+    chilog(INFO, "Looking up channel %s\n", channel_name);
+
     channel* c;
     channel* res = NULL;
 
@@ -85,9 +94,11 @@ channel* channel_lookup(char* channel_name, channel** channel_list)
 /* Verifies whether or not a user is in a channel */
 bool channel_verifyuser(channel* channel, user* user)
 {
-    chilog(INFO, "VERIFYING for %s\n", channel->channel_name);
+    chilog(INFO, "VERIFYING %s is in %s\n", user->nick, channel->channel_name);
+    
     struct user* u = NULL;
     channel_user* cu = NULL;
+
     for (cu = *(channel->user_list); cu != NULL; cu=cu->hh.next)
     {
         u = cu->user;
@@ -105,6 +116,7 @@ bool channel_verifyoperator(channel* channel, user* user)
 {
     struct user* u = NULL;
     channel_user* cu = NULL;
+
     for (cu = *(channel->user_list); cu != NULL; cu=cu->hh.next)
     {
         u = cu->user;
@@ -120,20 +132,30 @@ bool channel_verifyoperator(channel* channel, user* user)
 /* Adds a User to a Channel */
 void channel_adduser(channel* channel, user* user)
 {
+    chilog(INFO, "%s added to channel %s\n", user->nick, channel->channel_name);
+
     channel_user* new_user = (channel_user*)malloc(sizeof(channel_user));
+
     new_user->user = user;
     new_user->is_operator = false;
     new_user->member_no = channel->num_users;
+
     HASH_ADD_INT(*(channel->user_list), member_no, new_user);
+
     channel->num_users++;
+
 }
 
 
 /* Adds a User to a Channel's Operators List */
 void channel_addoperator(channel* channel, user* user)
 {
+    chilog(INFO, "%s made operator of channel %s\n", user->nick, 
+            channel->channel_name);
+
     struct user* u = NULL;
     channel_user* cu = NULL;
+
     for (cu = *(channel->user_list); cu != NULL; cu=cu->hh.next)
     {
         u = cu->user;
@@ -148,6 +170,8 @@ void channel_addoperator(channel* channel, user* user)
 /* Removes a User from a Channel */
 void channel_deluser(channel* channel, user* user)
 {
+    chilog(INFO, "Deleting user %s from channel %s\n", user->nick, 
+            channel->channel_name);
     struct user* u = NULL;
     channel_user* cu = NULL;
     channel_user* target = NULL;
@@ -161,14 +185,20 @@ void channel_deluser(channel* channel, user* user)
             break;
         }
     }
+
     HASH_DEL(*(channel->user_list), target);
     free(target);
+
+    channel->num_users--;
 }
 
 
 /* Removes a User from a Channel's Operators List */
 void channel_deop(channel* channel, user* user)
 {
+    chilog(INFO, "%s deop-ed from channel %s\n", user->nick, 
+            channel->channel_name);
+            
     struct user* u = NULL;
     channel_user* cu = NULL;
 

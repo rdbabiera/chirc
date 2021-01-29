@@ -22,8 +22,18 @@
 #include "utlist.h"
 #include "users.h"
 
+/**************** Structs for Channels ****************/
+
 /* 
  * Channel User Struct - Keeps track of user information in a channel
+ * 
+ * user: user struct
+ * 
+ * is_operator: flag if user is an operator
+ * 
+ * member_no: assigned number for that user for that channel
+ * 
+ * hh: Hash handle
  * 
  */
 typedef struct channel_user {
@@ -34,8 +44,21 @@ typedef struct channel_user {
     UT_hash_handle hh;
 } channel_user;
 
+
 /* 
  * Channel Struct - Keeps track of channel information
+ * 
+ * channel_name: name of the channel
+ * 
+ * channel_descriptor: number to identify the channel
+ * 
+ * num_users: number of users on that channel
+ * 
+ * user_list: list of (struct) users on that channel
+ * 
+ * hh: hash handle
+ * 
+ * channel_mutex: channel lock
  * 
  */
 typedef struct channel {
@@ -45,14 +68,15 @@ typedef struct channel {
 
     channel_user** user_list;
 
-    // For uthash
+    /* For uthash */
     UT_hash_handle hh;
 
-    // Lock Operations
+    /* Lock Operations */
     pthread_mutex_t channel_mutex;
 } channel;
 
-/***************** Functions *****************/
+
+/***************** Functions for Channels *****************/
 
 /*
  * channel_init - Initialize a channel
